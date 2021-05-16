@@ -257,35 +257,27 @@ fn add_bools_test() {
     let mut n = Number::from("0", 10);
     n.add_bools(&[true]);
     assert_eq!("0b00000001", n.to_string());
-    assert_eq!(1, n.buffer.len());
     n.add_bools(&[true]);
     assert_eq!("0b00000010", n.to_string());
-    assert_eq!(2, n.buffer.len());
     n.add_bools(&[true]);
     assert_eq!("0b00000011", n.to_string());
-    assert_eq!(2, n.buffer.len());
     n.add_bools(&[true]);
     assert_eq!("0b00000100", n.to_string());
-    assert_eq!(3, n.buffer.len());
 
     let mut n = Number::from("15", 10);
     n.add_bools(&[true]);
     assert_eq!("0b00010000", n.to_string());
-    assert_eq!(5, n.buffer.len());
 
     n.add_bools(&[true, false]);
     assert_eq!("0b00010001", n.to_string());
-    assert_eq!(5, n.buffer.len());
 
     let mut n = Number::from("0", 10);
     n.add_bools(&[true, true]);
     assert_eq!("0b00000011", n.to_string());
-    assert_eq!(2, n.buffer.len());
 
     let mut n = Number::from("1", 10);
     n.add_bools(&[false, true]);
     assert_eq!("0b00000011", n.to_string());
-    assert_eq!(2, n.buffer.len());
 }
 
 #[test]
@@ -413,7 +405,7 @@ fn from_str_r16() {
 fn number_get_bits() {
     let n = Number::from("F", 16);
     let bits = n.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
-    assert_eq!([true; 4], bits);
+    assert_eq!([true, true, true, true, false, false, false, false], bits);
 
     let n = Number::from("1E", 16);
     let bits = n.get_bits(BitsIndexRange(BitsIndex::IndexedBit(3), BitsIndex::IndexedBit(0)));
@@ -421,12 +413,12 @@ fn number_get_bits() {
     let bits = n.get_bits(BitsIndexRange(BitsIndex::IndexedBit(4), BitsIndex::IndexedBit(1)));
     assert_eq!([true; 4], bits);
     let bits = n.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
-    assert_eq!([false, true, true, true, true], bits);
+    assert_eq!([false, true, true, true, true, false, false, false], bits);
 }
 
 #[test]
 fn number_set_bits() {
     let mut n = Number::from("0", 16);
     n.set_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit), &[true, true]);
-    assert_eq!(vec![true; 8], n.buffer);
+    assert_eq!(vec![true, true, false, false, false, false, false, false], n.buffer);
 }
