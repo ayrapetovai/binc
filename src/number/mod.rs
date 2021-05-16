@@ -1,13 +1,15 @@
 use std::fmt::{Display, Formatter};
-use std::cmp::max;
+use log::trace;
 
-enum BitsIndex {
+#[derive(Debug, Copy, Clone)]
+pub enum BitsIndex {
     HighestBit,
     LowestBit,
     IndexedBit(usize)
 }
 
-struct BitsIndexRange(BitsIndex, BitsIndex);
+#[derive(Debug)]
+pub struct BitsIndexRange(pub BitsIndex, pub BitsIndex);
 
 #[derive(Debug, Copy, Clone)]
 pub enum NumberType {
@@ -28,7 +30,7 @@ pub struct Number {
 impl Number {
     pub fn new(number_type: NumberType, is_signed: bool, max_size: usize) -> Self {
         Self {
-            buffer: vec![false; 1],
+            buffer: vec![false; max_size],
             max_size,
             number_type,
             is_signed,
@@ -59,13 +61,16 @@ impl Number {
             }
         }
         new_number.max_size = (new_number.buffer.len() / 8 + if new_number.buffer.len() % 8 != 0 { 1 } else { 0 }) * 8;
-        // new_number.buffer.reserve(new_number.max_size - new_number.buffer.len());
-        // new_number.buffer.push(false);
+        let mut buf = vec![false; new_number.max_size];
+        for i in 0..new_number.buffer.len() {
+            buf[i] = new_number.buffer[i];
+        }
+        new_number.buffer = buf;
         new_number
     }
 
     fn add_number(&mut self, additive: u32) {
-        let mut additive_length = signing_bits(additive);
+        let additive_length = signing_bits(additive);
         let mut i = 0;
         let mut additive_mask = 0x1u32;
         let mut carry = false;
@@ -135,6 +140,7 @@ impl Number {
     }
 
     pub fn set_bits(&mut self, range: BitsIndexRange, source_bits: &[bool]) {
+        trace!("number.set_bits: {:?}", range);
         let high_index = match range.0 {
             BitsIndex::IndexedBit(i) => i,
             BitsIndex::HighestBit => &self.buffer.len()  - 1,
@@ -146,15 +152,33 @@ impl Number {
             BitsIndex::HighestBit => &self.buffer.len()  - 1,
             BitsIndex::LowestBit => 0
         };
-        let mut i = 0;
-        for b in low_index..=high_index {
-            if i < source_bits.len() {
-                self.buffer[b] = source_bits[i];
-                i += 1
+        let mut source_index = 0;
+        let mut target_index = low_index;
+        while target_index <= high_index {
+            if target_index >= self.buffer.len() {
+                self.buffer.push(false);
+            }
+            if source_index < source_bits.len() {
+                self.buffer[target_index] = source_bits[source_index];
+                source_index += 1;
+                target_index += 1;
             } else {
                 break;
             }
         }
+    }
+
+    pub fn max_size(&self) -> usize {
+        self.max_size
+    }
+
+    pub fn extend_to(&mut self, new_size: usize) {
+        self.max_size = new_size;
+        let mut buf = vec![false; self.max_size];
+        for i in 0..self.buffer.len() {
+            buf[i] = self.buffer[i];
+        }
+        self.buffer = buf;
     }
 
     // fn to_string(&self, radix: u32) -> String {
@@ -386,7 +410,7 @@ fn from_str_r16() {
 }
 
 #[test]
-fn get_bits() {
+fn number_get_bits() {
     let n = Number::from("F", 16);
     let bits = n.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
     assert_eq!([true; 4], bits);
@@ -398,4 +422,11 @@ fn get_bits() {
     assert_eq!([true; 4], bits);
     let bits = n.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
     assert_eq!([false, true, true, true, true], bits);
+}
+
+#[test]
+fn number_set_bits() {
+    let mut n = Number::from("0", 16);
+    n.set_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit), &[true, true]);
+    assert_eq!(vec![true; 8], n.buffer);
 }

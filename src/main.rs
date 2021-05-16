@@ -7,7 +7,7 @@ use number::{Number, NumberType};
 use log::{info, trace, warn};
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
-use syntax::{parse};
+use syntax::parse;
 use operators::{HandlerResult};
 
 fn print_ui(number: &Number) {

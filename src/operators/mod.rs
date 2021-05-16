@@ -1,5 +1,6 @@
 use crate::syntax::OperandSource;
-use crate::number::Number;
+use crate::number::{Number, BitsIndexRange, BitsIndex};
+use log::trace;
 
 pub enum HandlerResult {
     Error(String),
@@ -19,13 +20,14 @@ pub type Operator = fn(buffer: &mut Number, left: OperandSource, right: OperandS
 
 pub fn operator_assign(buffer: &mut Number, left: OperandSource, right: OperandSource) -> HandlerResult {
     match right {
-        DirectSource(other_number) => {
+        DirectSource(mut other_number) => {
+            other_number.extend_to(buffer.max_size());
             match left {
                 DirectSource(_) => panic!("The left side of an expression cannot be represented by an immediate value"), // will never be here
                 RangeSource(target_range) => {
-                    buffer.assign_value(&other_number);
-                    // let bits = other_number.get_bits((usize::MAX, 0));
-                    // buffer.set_bits(target_range, bits);
+                    let bits = other_number.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
+                    trace!("operator_assign: get bits: {:?}", bits);
+                    buffer.set_bits(target_range, bits);
                 },
                 NamedAccessSource(_) => {}
             }
@@ -34,8 +36,8 @@ pub fn operator_assign(buffer: &mut Number, left: OperandSource, right: OperandS
             match left {
                 DirectSource(_) => panic!("The left side of an expression cannot be represented by an immediate value"), // will never be here
                 RangeSource(target_range) => {
-                    // let bits = buffer.get_bits(source_range);
-                    // buffer.set_bits(target_range, bits);
+                    let bits = buffer.get_bits(source_range).to_owned();
+                    buffer.set_bits(target_range, &bits[..]);
                 },
                 NamedAccessSource(_) => {}
             }

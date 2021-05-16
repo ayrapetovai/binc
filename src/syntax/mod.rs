@@ -1,8 +1,6 @@
-use crate::number::Number;
+use crate::number::{Number, BitsIndexRange, BitsIndex};
 use crate::operators::{Operator, operator_assign};
 use log::{info, trace, warn};
-
-pub type Range = (usize, usize);
 
 #[derive(Debug)]
 pub enum NamedAccess {
@@ -14,7 +12,7 @@ pub enum NamedAccess {
 
 #[derive(Debug)]
 pub enum OperandSource {
-    RangeSource(Range),
+    RangeSource(BitsIndexRange),
     NamedAccessSource(NamedAccess),
     DirectSource(Number),
 }
@@ -87,24 +85,25 @@ pub fn syntax_index(mut it: ParsingIterator) -> (ParsingIterator, Option<usize>)
     (it, Some(acc))
 }
 
-fn syntax_range(it: ParsingIterator) -> (ParsingIterator, Range) {
+fn syntax_range(it: ParsingIterator) -> (ParsingIterator, BitsIndexRange) {
     let (it_after_index, range_left_index) = match syntax_index(it) {
-        (it, Some(i)) => (it, i),
-        (it, None) => (it, usize::MAX)
+        (it, Some(i)) => (it, BitsIndex::IndexedBit(i)),
+        (it, None) => (it, BitsIndex::HighestBit)
     };
     let (it_after_index, range_right_index) = if let Some(c) = it_after_index.current() {
         if c == ':' {
             match syntax_index(it_after_index.skip(1)) {
-                (it, Some(i)) => (it, i),
-                (it, None) => (it, 0)
+                (it, Some(i)) => (it, BitsIndex::IndexedBit(i)),
+                (it, None) => (it, BitsIndex::LowestBit)
             }
         } else {
             (it_after_index, range_left_index)
         }
     } else {
-        (it_after_index, 0)
+        (it_after_index, BitsIndex::LowestBit)
     };
-    (it_after_index, (range_left_index, range_right_index))
+    trace!("syntax_range: ({:?}, {:?})", range_left_index, range_right_index);
+    (it_after_index, BitsIndexRange(range_left_index, range_right_index))
 }
 
 fn syntax_accessor(it: ParsingIterator) -> Result<(ParsingIterator, Option<OperandSource>), String> {
@@ -201,7 +200,7 @@ pub fn parse(cmd: &str) -> Result<(OperandSource, Operator, OperandSource), Stri
     let space_free_cmd: String = cmd.chars().filter(| c| !c.is_whitespace()).collect();
     let (it_after_first_operand, left_operand_source) = match syntax_accessor(ParsingIterator::from(&space_free_cmd)) {
         Ok((it, Some(ops))) => (it, ops),
-        Ok((it, None)) => (it, OperandSource::RangeSource((usize::MAX, 0))),
+        Ok((it, None)) => (it, OperandSource::RangeSource(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit))),
         Err(message) => return Err(message)
     };
     let (it_after_operator, operator_handler) = match syntax_operator(it_after_first_operand) {
