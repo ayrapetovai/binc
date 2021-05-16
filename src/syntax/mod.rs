@@ -1,5 +1,5 @@
 use crate::number::{Number, BitsIndexRange, BitsIndex};
-use crate::operators::{Operator, operator_assign};
+use crate::operators::{Operator, operator_assign, operator_sum};
 use log::{info, trace, warn};
 
 #[derive(Debug)]
@@ -131,6 +131,7 @@ fn syntax_accessor(it: ParsingIterator) -> Result<(ParsingIterator, Option<Opera
 fn syntax_operator(it: ParsingIterator) -> (ParsingIterator, Option<Operator>) {
     match it.current() {
         Some('=') => return (it.skip(1), Some(operator_assign as Operator)),
+        Some('+') => return (it.skip(1), Some(operator_sum as Operator)),
         _ => (it, None)
     }
 }

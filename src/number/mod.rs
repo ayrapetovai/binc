@@ -95,7 +95,8 @@ impl Number {
         }
     }
 
-    fn add_bools(&mut self, additive: &[bool]) {
+    // fixme make private
+    pub fn add_bools(&mut self, additive: &[bool]) {
         let mut carry = false;
         if additive.len() > self.buffer.len() {
             self.buffer.reserve(additive.len() - self.buffer.len());
