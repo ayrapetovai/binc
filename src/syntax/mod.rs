@@ -37,6 +37,7 @@ impl<'a> ParsingIterator<'a> {
             None
         }
     }
+    // TODO remove
     pub fn current_2(&self) -> Option<(char, char)> {
         if self.offset + 1 < self.source.len() {
             Some((self.source[self.offset] as char, self.source[self.offset + 1] as char))
@@ -47,14 +48,16 @@ impl<'a> ParsingIterator<'a> {
     pub fn match_from_current(&self, sequence: &str) -> bool {
         let bytes = sequence.as_bytes();
         for i in 0..sequence.len() {
-            if self.offset + i >= self.source.len() || self.source[i] != bytes[i] {
+            if self.offset + i >= self.source.len() || self.source[self.offset + i] != bytes[i] {
                 return false
             }
         }
         true
     }
     pub fn next(&mut self) -> Option<char> {
-        self.offset += 1;
+        if self.offset < self.source.len() {
+            self.offset += 1;
+        }
         self.current()
     }
     pub fn rewind_n(mut self, n: usize) -> Self {
@@ -62,8 +65,7 @@ impl<'a> ParsingIterator<'a> {
         self
     }
     pub fn rewind(mut self) -> Self {
-        self.offset += 1;
-        self
+        self.rewind_n(1)
     }
 }
 
@@ -225,6 +227,62 @@ pub fn parse(cmd: &str) -> Result<(OperandSource, Operator, OperandSource), Stri
 }
 
 #[test]
+fn parsing_iterator_from() {
+    let mut it = ParsingIterator::from("");
+    assert_eq!(0, it.offset);
+    match it.current() {
+        None => {}, // success
+        _ => panic!("next value for iterator with empty string must be None")
+    }
+    assert_eq!(0, it.offset);
+    match it.next() {
+        None => {}, // success
+        _ => panic!("next value for iterator with empty string must be None")
+    }
+    assert_eq!(0, it.offset);
+
+    let mut it = ParsingIterator::from("abc");
+    assert_eq!(0, it.offset);
+    match it.current() {
+        Some('a') => {}, // success
+        Some(_) => panic!("current value of fresh iterator must be the first letter in source string"),
+        None => panic!("current value of fresh iterator with non-empty string must be Some letter")
+    }
+    match it.next() {
+        Some('b') => {}, // success
+        _ => panic!("next value for iterator with empty string must be Some letter")
+    }
+    assert_eq!(1, it.offset);
+}
+
+#[test]
+fn parsing_iterator_match_from_current() {
+    let mut it = ParsingIterator::from("abc");
+    assert_eq!(0, it.offset);
+    assert!(it.match_from_current("a"));
+    assert!(it.match_from_current("ab"));
+    assert!(it.match_from_current("abc"));
+
+    assert_eq!(Some('b'), it.next());
+    assert_eq!(Some('b'), it.current());
+
+    assert!(!it.match_from_current("a"));
+    assert!(it.match_from_current("b"));
+    assert!(it.match_from_current("bc"));
+
+    assert_eq!(Some('c'), it.next());
+    assert_eq!(Some('c'), it.current());
+
+    assert!(!it.match_from_current("b"));
+    assert!(it.match_from_current("c"));
+
+    assert_eq!(None, it.next());
+    assert_eq!(None, it.current());
+    assert!(!it.match_from_current("c"));
+    assert!(!it.match_from_current("abc"));
+}
+
+#[test]
 fn syntax_index_test() {
     match syntax_index(ParsingIterator::from("")) {
         (_, Some(_)) => panic!("syntax_index() must return no value if source string was empty"),
@@ -252,15 +310,15 @@ fn syntax_index_test() {
             assert_eq!(test_string.len() - 1, count);
         }
     }
-    match syntax_index(ParsingIterator::from("123 adf")) {
+    match syntax_index(ParsingIterator::from("123adf")) {
         (mut it, Some(parsed)) => {
             assert_eq!(123, parsed);
-            assert_eq!(Some(' '), it.current());
+            assert_eq!(Some('a'), it.current());
             let mut count = 0;
             while let Some(_) = it.next() {
                 count += 1;
             }
-            assert_eq!(" adf".len() - 1, count);
+            assert_eq!("adf".len() - 1, count);
         },
         (_, None) => panic!("syntax_index() must return value if source string has leading digits")
     }
