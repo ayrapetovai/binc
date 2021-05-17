@@ -23,11 +23,17 @@ pub struct ParsingIterator<'a> {
 }
 
 impl<'a> ParsingIterator<'a> {
-    pub fn from(source: &'a str) -> Self {
-
-        Self {
-            source: source.as_bytes(),
-            offset: 0,
+    pub fn from(source_string: &'a str) -> Result<Self, &str> {
+        let bytes = source_string.as_bytes();
+        if !bytes.is_ascii() {
+            Err("given string is not ascii")
+        } else {
+            Ok(
+                Self {
+                    source: bytes,
+                    offset: 0,
+                }
+            )
         }
     }
     pub fn current(&self) -> Option<char> {
@@ -206,7 +212,9 @@ fn syntax_number(mut it: ParsingIterator, radix: u32) -> Result<(ParsingIterator
 pub fn parse(cmd: &str) -> Result<(OperandSource, Operator, OperandSource), String> {
     trace!("parse");
     let space_free_cmd: String = cmd.chars().filter(| c| !c.is_whitespace()).collect();
-    let (it_after_first_operand, left_operand_source) = match syntax_accessor(ParsingIterator::from(&space_free_cmd)) {
+    let (it_after_first_operand, left_operand_source) = match syntax_accessor(
+        ParsingIterator::from(&space_free_cmd).expect("Cannot create iterator for command: ")
+    ) {
         Ok((it, Some(ops))) => (it, ops),
         Ok((it, None)) => (it, OperandSource::RangeSource(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit))),
         Err(message) => return Err(message)
@@ -227,8 +235,14 @@ pub fn parse(cmd: &str) -> Result<(OperandSource, Operator, OperandSource), Stri
 }
 
 #[test]
+#[should_panic]
+fn parsing_iterator_from_non_ascii() {
+    ParsingIterator::from("これは変な文です").unwrap();
+}
+
+#[test]
 fn parsing_iterator_from() {
-    let mut it = ParsingIterator::from("");
+    let mut it = ParsingIterator::from("").unwrap();
     assert_eq!(0, it.offset);
     match it.current() {
         None => {}, // success
@@ -241,7 +255,7 @@ fn parsing_iterator_from() {
     }
     assert_eq!(0, it.offset);
 
-    let mut it = ParsingIterator::from("abc");
+    let mut it = ParsingIterator::from("abc").unwrap();
     assert_eq!(0, it.offset);
     match it.current() {
         Some('a') => {}, // success
@@ -257,7 +271,7 @@ fn parsing_iterator_from() {
 
 #[test]
 fn parsing_iterator_match_from_current() {
-    let mut it = ParsingIterator::from("abc");
+    let mut it = ParsingIterator::from("abc").unwrap();
     assert_eq!(0, it.offset);
     assert!(it.match_from_current("a"));
     assert!(it.match_from_current("ab"));
@@ -284,23 +298,23 @@ fn parsing_iterator_match_from_current() {
 
 #[test]
 fn syntax_index_test() {
-    match syntax_index(ParsingIterator::from("")) {
+    match syntax_index(ParsingIterator::from("").unwrap()) {
         (_, Some(_)) => panic!("syntax_index() must return no value if source string was empty"),
         (it, None) if it.current() == None => (), // success
         _ => panic!("syntax_index() must exhaust iterator with empty string")
     }
-    match syntax_index(ParsingIterator::from("0")) {
+    match syntax_index(ParsingIterator::from("0").unwrap()) {
         (it, Some(parsed)) if it.current() == None => assert_eq!(0, parsed),
         (_, None) => panic!("syntax_index() must parse 0"),
         _ => panic!("syntax_index() must exhaust iterator with string containing one number")
     }
-    match syntax_index(ParsingIterator::from(&usize::MAX.to_string())) {
+    match syntax_index(ParsingIterator::from(&usize::MAX.to_string()).unwrap()) {
         (it, Some(parsed)) if it.current() == None => assert_eq!(usize::MAX, parsed),
         (_, None) => panic!("syntax_index() must parse usize::MAX"),
         _ => panic!("syntax_index() must exhaust iterator with empty string")
     }
     let test_string = "a1fasd";
-    match syntax_index(ParsingIterator::from(test_string)) {
+    match syntax_index(ParsingIterator::from(test_string).unwrap()) {
         (_, Some(_)) => panic!("syntax_index() must return no value if source string has no leading digits"),
         (mut it, None) => {
             let mut count = 0;
@@ -310,7 +324,7 @@ fn syntax_index_test() {
             assert_eq!(test_string.len() - 1, count);
         }
     }
-    match syntax_index(ParsingIterator::from("123adf")) {
+    match syntax_index(ParsingIterator::from("123adf").unwrap()) {
         (mut it, Some(parsed)) => {
             assert_eq!(123, parsed);
             assert_eq!(Some('a'), it.current());
