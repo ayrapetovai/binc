@@ -1,5 +1,5 @@
 use crate::number::{Number, BitsIndexRange, BitsIndex};
-use crate::operators::{Operator, operator_assign, operator_sum};
+use crate::operators::{Operator, operator_assign, operator_sum, operator_unsigned_shift_left};
 use log::{info, trace, warn};
 
 #[derive(Debug)]
@@ -17,50 +17,52 @@ pub enum OperandSource {
     DirectSource(Number),
 }
 
-pub struct ParsingIterator {
-    iterator: Option<Box<dyn Iterator<Item = char>>>,
-    current: Option<char>,
+pub struct ParsingIterator<'a> {
+    source: &'a [u8],
     offset: usize,
 }
 
-impl ParsingIterator {
-    pub fn from(s: &str) -> Self {
-        let mut iter = s.chars().collect::<Vec<_>>().into_iter();
-        let current = iter.next();
+impl<'a> ParsingIterator<'a> {
+    pub fn from(source: &'a str) -> Self {
+
         Self {
-            iterator: Some(Box::new(iter)),
-            current,
-            offset: 1,
+            source: source.as_bytes(),
+            offset: 0,
         }
     }
     pub fn current(&self) -> Option<char> {
-        self.current
-    }
-    pub fn next(&mut self) -> Option<char> {
-        match &mut self.iterator {
-            Some(it) => {
-                self.offset += 1;
-                self.current = it.next();
-                self.current
-            },
-            None => None
+        if self.offset < self.source.len() {
+            Some(self.source[self.offset] as char)
+        } else {
+            None
         }
     }
-    pub fn skip(mut self, n: usize) -> Self {
-        let mut count = n;
-        while count > 0 {
-            self.current = match &mut self.iterator {
-                Some(i) => {
-                    count -= 1;
-                    self.offset += 1;
-                    i.next()
-                },
-                None => {
-                    count -= 1;
-                    None
-                }
+    pub fn current_2(&self) -> Option<(char, char)> {
+        if self.offset + 1 < self.source.len() {
+            Some((self.source[self.offset] as char, self.source[self.offset + 1] as char))
+        } else {
+            None
+        }
+    }
+    pub fn match_from_current(&self, sequence: &str) -> bool {
+        let bytes = sequence.as_bytes();
+        for i in 0..sequence.len() {
+            if self.offset + i >= self.source.len() || self.source[i] != bytes[i] {
+                return false
             }
         }
+        true
+    }
+    pub fn next(&mut self) -> Option<char> {
+        self.offset += 1;
+        self.current()
+    }
+    pub fn rewind_n(mut self, n: usize) -> Self {
+        self.offset += n;
+        self
+    }
+    pub fn rewind(mut self) -> Self {
+        self.offset += 1;
         self
     }
 }
@@ -92,7 +94,7 @@ fn syntax_range(it: ParsingIterator) -> (ParsingIterator, BitsIndexRange) {
     };
     let (it_after_index, range_right_index) = if let Some(c) = it_after_index.current() {
         if c == ':' {
-            match syntax_index(it_after_index.skip(1)) {
+            match syntax_index(it_after_index.rewind()) {
                 (it, Some(i)) => (it, BitsIndex::IndexedBit(i)),
                 (it, None) => (it, BitsIndex::LowestBit)
             }
@@ -110,10 +112,10 @@ fn syntax_accessor(it: ParsingIterator) -> Result<(ParsingIterator, Option<Opera
     match it.current() {
         Some(c) => match c {
             '[' => {
-                let (current_it, range) = syntax_range(it.skip(1));
+                let (current_it, range) = syntax_range(it.rewind());
                 if let Some(c) = current_it.current() {
                     if c == ']' {
-                        Ok((current_it.skip(1), Some(OperandSource::RangeSource(range))))
+                        Ok((current_it.rewind(), Some(OperandSource::RangeSource(range))))
                     } else {
                         Err("Accessor [] is not closed with ']'".to_owned())
                     }
@@ -129,9 +131,12 @@ fn syntax_accessor(it: ParsingIterator) -> Result<(ParsingIterator, Option<Opera
 }
 
 fn syntax_operator(it: ParsingIterator) -> (ParsingIterator, Option<Operator>) {
+    if it.match_from_current("<<") {
+        return (it.rewind_n(2), Some(operator_unsigned_shift_left as Operator));
+    }
     match it.current() {
-        Some('=') => return (it.skip(1), Some(operator_assign as Operator)),
-        Some('+') => return (it.skip(1), Some(operator_sum as Operator)),
+        Some('=') => return (it.rewind(), Some(operator_assign as Operator)),
+        Some('+') => return (it.rewind(), Some(operator_sum as Operator)),
         _ => (it, None)
     }
 }
@@ -146,7 +151,7 @@ fn syntax_rvalue(it: ParsingIterator) -> Result<(ParsingIterator, OperandSource)
                 Err(message) => Err(message)
             },
             '1'..='9' => syntax_number(it, 10),
-            '0' => syntax_radix_number(it.skip(1)),
+            '0' => syntax_radix_number(it.rewind()),
             _ => Err("bad number syntax".to_owned())
         }
         None => Err("no second operand".to_owned())
@@ -157,18 +162,18 @@ fn syntax_radix_number(it: ParsingIterator) -> Result<(ParsingIterator, OperandS
     trace!("syntax_radix_number, with current '{:?}'", it.current());
     match it.current() {
         Some(c) => match c {
-            'b' | 'B' => syntax_number(it.skip(1), 2),
-            'o' | 'O' => syntax_number(it.skip(1), 8),
-            'd' | 'D' => syntax_number(it.skip(1), 10),
-            'h' | 'H' | 'x' | 'X' => syntax_number(it.skip(1), 16),
+            'b' | 'B' => syntax_number(it.rewind(), 2),
+            'o' | 'O' => syntax_number(it.rewind(), 8),
+            'd' | 'D' => syntax_number(it.rewind(), 10),
+            'h' | 'H' | 'x' | 'X' => syntax_number(it.rewind(), 16),
             '(' =>
-                if let (it_after_arbitrary_radix, Some(radix)) = syntax_index(it.skip(1)) {
+                if let (it_after_arbitrary_radix, Some(radix)) = syntax_index(it.rewind()) {
                     match it_after_arbitrary_radix.current() {
                         Some(')') => {
                             if radix > 37 { // length('0'..='9') + length('a'..='z')
                                 return Err(format!("Arbitrary radix is too big - {}, must be small enough to write numbers in it with '0'..'9' + 'a'..'z'", { radix }))
                             }
-                            syntax_number(it_after_arbitrary_radix.skip(1), radix as u32)
+                            syntax_number(it_after_arbitrary_radix.rewind(), radix as u32)
                         }
                         _ => Err("Arbitrary radix must be closed with ')'".to_owned())
                     }

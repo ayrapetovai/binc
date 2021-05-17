@@ -75,3 +75,7 @@ pub fn operator_sum(buffer: &mut Number, left: OperandSource, right: OperandSour
     }
     Historical
 }
+
+pub fn operator_unsigned_shift_left(buffer: &mut Number, left: OperandSource, right: OperandSource) -> HandlerResult {
+    todo!()
+}
