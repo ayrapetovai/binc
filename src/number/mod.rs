@@ -70,7 +70,7 @@ impl Number {
     }
 
     fn add_number(&mut self, additive: u32) {
-        let additive_length = signing_bits(additive);
+        let additive_length = 32usize - additive.leading_zeros() as usize;
         let mut i = 0;
         let mut additive_mask = 0x1u32;
         let mut carry = false;
@@ -173,11 +173,17 @@ impl Number {
         self.max_size
     }
 
-    pub fn extend_to(&mut self, new_size: usize) {
-        self.max_size = new_size;
+    pub fn signed_extend_to(&mut self, new_max_size: usize) {
+        self.max_size = new_max_size;
         let mut buf = vec![false; self.max_size];
         for i in 0..self.buffer.len() {
             buf[i] = self.buffer[i];
+        }
+        let last_bit = *self.buffer.last().unwrap();
+        if self.buffer.len() < buf.len() {
+            for i in self.buffer.len()..buf.len() {
+                buf[i] = last_bit;
+            }
         }
         self.buffer = buf;
     }
@@ -185,16 +191,6 @@ impl Number {
     // fn to_string(&self, radix: u32) -> String {
     //     todo!()
     // }
-}
-
-fn signing_bits(n: u32) -> usize {
-    let mut additive_length = 32usize;
-    let mut additive_length_mask = 0x80_00__00_00;
-    while n & additive_length_mask == 0 && additive_length_mask > 0 {
-        additive_length -= 1;
-        additive_length_mask >>= 1;
-    }
-    additive_length
 }
 
 impl Display for Number {
@@ -211,14 +207,6 @@ impl Display for Number {
         }
         Ok(())
     }
-}
-
-#[test]
-fn signing_bits_test() {
-    assert_eq!(0, signing_bits(0));
-    assert_eq!(1, signing_bits(1));
-    assert_eq!(4, signing_bits(0b1000));
-    assert_eq!(32, signing_bits(u32::MAX));
 }
 
 #[test]

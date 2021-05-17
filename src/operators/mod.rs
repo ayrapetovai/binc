@@ -21,7 +21,7 @@ pub type Operator = fn(buffer: &mut Number, left: OperandSource, right: OperandS
 pub fn operator_assign(buffer: &mut Number, left: OperandSource, right: OperandSource) -> HandlerResult {
     match right {
         DirectSource(mut other_number) => {
-            other_number.extend_to(buffer.max_size());
+            other_number.signed_extend_to(buffer.max_size());
             match left {
                 DirectSource(_) => panic!("The left side of an expression cannot be represented by an immediate value"), // will never be here
                 RangeSource(target_range) => {
@@ -50,7 +50,7 @@ pub fn operator_assign(buffer: &mut Number, left: OperandSource, right: OperandS
 pub fn operator_sum(buffer: &mut Number, left: OperandSource, right: OperandSource) -> HandlerResult {
     match right {
         DirectSource(mut other_number) => {
-            other_number.extend_to(buffer.max_size());
+            other_number.signed_extend_to(buffer.max_size());
             match left {
                 DirectSource(_) => panic!("The left side of an expression cannot be represented by an immediate value"), // will never be here
                 RangeSource(target_range) => {
