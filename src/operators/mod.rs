@@ -3,12 +3,12 @@ use crate::number::{Number, BitsIndexRange, BitsIndex};
 use log::trace;
 
 pub enum HandlerResult {
-    Error(String),
+    Message(String),
     Historical,
     Nonhistorical
 }
 
-use HandlerResult::Error;
+use HandlerResult::Message;
 use HandlerResult::Nonhistorical;
 use HandlerResult::Historical;
 
@@ -77,5 +77,5 @@ pub fn operator_sum(buffer: &mut Number, left: OperandSource, right: OperandSour
 }
 
 pub fn operator_unsigned_shift_left(buffer: &mut Number, left: OperandSource, right: OperandSource) -> HandlerResult {
-    todo!()
+    Message("not implemented".to_owned())
 }

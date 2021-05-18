@@ -4,7 +4,7 @@ mod operators;
 
 use number::{Number, NumberType};
 
-use log::{info, trace, warn};
+use log::{error, info, warn, trace};
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 use syntax::parse;
@@ -49,9 +49,10 @@ fn main() {
                 for command in command_list {
                     match generate_executor(command) {
                         Ok(executor) => {
+                            editor.add_history_entry(command);
                             match executor(&mut main_buffer) {
-                                HandlerResult::Error(message) => println!("error: {}", message),
-                                HandlerResult::Historical => { editor.add_history_entry(command); },
+                                HandlerResult::Message(message) => println!(": {}", message),
+                                HandlerResult::Historical => (),
                                 HandlerResult::Nonhistorical => ()
                             }
                         }
@@ -68,7 +69,7 @@ fn main() {
                 break
             },
             Err(err) => {
-                trace!("Error: {:?}", err);
+                error!("Error: {:?}", err);
                 break
             }
         }

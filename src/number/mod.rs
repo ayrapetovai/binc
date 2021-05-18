@@ -180,7 +180,7 @@ impl Number {
             buf[i] = self.buffer[i];
         }
         let last_bit = *self.buffer.last().unwrap();
-        if self.buffer.len() < buf.len() {
+        if self.is_signed && self.buffer.len() < buf.len() {
             for i in self.buffer.len()..buf.len() {
                 buf[i] = last_bit;
             }

@@ -213,7 +213,10 @@ pub fn parse(cmd: &str) -> Result<(OperandSource, Operator, OperandSource), Stri
     trace!("parse");
     let space_free_cmd: String = cmd.chars().filter(| c| !c.is_whitespace()).collect();
     let (it_after_first_operand, left_operand_source) = match syntax_accessor(
-        ParsingIterator::from(&space_free_cmd).expect("Cannot create iterator for command: ")
+        match ParsingIterator::from(&space_free_cmd) {
+            Err(msg) => return Err(format!("Cannot create parser for command '{}': ", cmd) + msg),
+            Ok(it) => it
+        }
     ) {
         Ok((it, Some(ops))) => (it, ops),
         Ok((it, None)) => (it, OperandSource::RangeSource(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit))),
