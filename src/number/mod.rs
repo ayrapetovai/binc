@@ -205,9 +205,24 @@ impl Number {
 
 impl Display for Number {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        // write!(f, "").unwrap();
+        // write first index line
+        write!(f, "   ");
+        let mut first_index_line = self.max_size as i32 - 1;
+        while first_index_line >= 0 {
+            write!(f, "{}", format!("{:<2}{:>7}  ", first_index_line, first_index_line - 7)).unwrap();
+            first_index_line -= 8;
+        }
+        writeln!(f, "");
+
+        // write bits
+        let sign_char = match self.buffer.last() {
+            Some(true) if self.is_signed => '-',
+            Some(false) if self.is_signed => '+',
+            _ => 'u'
+        };
+        write!(f, "{}  ", sign_char);
         for _ in self.buffer.len()..self.max_size {
-            write!(f, "{}", 0).unwrap()
+            write!(f, "{}", 0).unwrap();
         }
         let mut count = 0;
         for b in self.buffer.iter().take(self.buffer.len()).rev() {
@@ -219,6 +234,19 @@ impl Display for Number {
             if count % 4 == 0 {
                 write!(f, " ").unwrap();
             }
+            if count % 8 == 0 {
+                write!(f, " ").unwrap();
+            }
+        }
+        writeln!(f, "");
+
+        // write second index line
+        write!(f, "c {}", if self.carry { '1' } else { '0' });
+        let mut second_index_line = self.max_size as i32 - 4;
+        while second_index_line >= 0 {
+            //  60 59
+            write!(f, "{}", format!("{:>4} {:<4}  ", second_index_line, second_index_line - 1)).unwrap();
+            second_index_line -= 8;
         }
         Ok(())
     }

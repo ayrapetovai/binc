@@ -1,6 +1,7 @@
 use crate::number::{Number, BitsIndexRange, BitsIndex};
-use crate::operators::{Operator, operator_assign, operator_sum, operator_unsigned_shift_left};
+use crate::operators::{Operator, operator_show_help, operator_assign, operator_sum, operator_unsigned_shift_left};
 use log::{info, trace, warn};
+use crate::syntax::OperandSource::Empty;
 
 #[derive(Debug)]
 pub enum NamedAccess {
@@ -15,6 +16,7 @@ pub enum OperandSource {
     RangeSource(BitsIndexRange),
     NamedAccessSource(NamedAccess),
     DirectSource(Number),
+    Empty
 }
 
 pub struct ParsingIterator<'a> {
@@ -22,6 +24,7 @@ pub struct ParsingIterator<'a> {
     offset: usize,
 }
 
+// TODO skip spaces and tabs?
 impl<'a> ParsingIterator<'a> {
     pub fn from(source_string: &'a str) -> Result<Self, &str> {
         let bytes = source_string.as_bytes();
@@ -139,10 +142,14 @@ fn syntax_accessor(it: ParsingIterator) -> Result<(ParsingIterator, Option<Opera
 }
 
 fn syntax_operator(it: ParsingIterator) -> (ParsingIterator, Option<Operator>) {
+    if it.match_from_current("help") {
+        return (it.rewind_n(4), Some(operator_show_help as Operator));
+    }
     if it.match_from_current("<<") {
         return (it.rewind_n(2), Some(operator_unsigned_shift_left as Operator));
     }
     match it.current() {
+        Some('?') => return (it.rewind(), Some(operator_show_help as Operator)),
         Some('=') => return (it.rewind(), Some(operator_assign as Operator)),
         Some('+') => return (it.rewind(), Some(operator_sum as Operator)),
         _ => (it, None)
@@ -162,7 +169,7 @@ fn syntax_rvalue(it: ParsingIterator) -> Result<(ParsingIterator, OperandSource)
             '0' => syntax_radix_number(it.rewind()),
             _ => Err("bad number syntax".to_owned())
         }
-        None => Err("no second operand".to_owned())
+        None => Ok((it, Empty))
     }
 }
 

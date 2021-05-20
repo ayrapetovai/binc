@@ -2,6 +2,7 @@ use crate::syntax::OperandSource;
 use crate::number::{Number, BitsIndexRange, BitsIndex};
 use log::trace;
 
+// TODO remove Message, introduce Historical(String) and Nonhistorical(String), Result<HandlerResult, String>
 pub enum HandlerResult {
     Message(String),
     Historical,
@@ -18,6 +19,16 @@ use OperandSource::NamedAccessSource;
 
 pub type Operator = fn(buffer: &mut Number, left: OperandSource, right: OperandSource) -> HandlerResult;
 
+pub fn operator_show_help(_: &mut Number, _: OperandSource, _: OperandSource) -> HandlerResult {
+    Message(
+"X operator (Y|X): >> << >>> <<< + - * / pow sqrt > < s<< s>> s>>> s<<< ^ & | <> == = count
+operator X: ! random shuffle reverse ~
+X, Y: [] [i] [:] [i:] [:j] [i:j] c; e f
+Y: 1 3.14 -0; -inf +inf NaN eps
+commands: intX floatX fixedX printf signed unsigned history undo redo about ?".to_owned()
+    )
+}
+
 pub fn operator_assign(buffer: &mut Number, left: OperandSource, right: OperandSource) -> HandlerResult {
     match right {
         DirectSource(mut other_number) => {
@@ -29,7 +40,8 @@ pub fn operator_assign(buffer: &mut Number, left: OperandSource, right: OperandS
                     trace!("operator_assign: get bits: {:?}", bits);
                     buffer.set_bits(target_range, bits);
                 },
-                NamedAccessSource(_) => {}
+                NamedAccessSource(_) => {},
+                Empty => panic!("no second operand!")
             }
         },
         RangeSource(source_range) => {
@@ -39,10 +51,12 @@ pub fn operator_assign(buffer: &mut Number, left: OperandSource, right: OperandS
                     let bits = buffer.get_bits(source_range).to_owned();
                     buffer.set_bits(target_range, &bits[..]);
                 },
-                NamedAccessSource(_) => {}
+                NamedAccessSource(_) => {},
+                Empty => panic!("no second operand!")
             }
         }
-        NamedAccessSource(_) => {}
+        NamedAccessSource(_) => {},
+        Empty => panic!("no first operand!")
     }
     Historical
 }
@@ -58,20 +72,22 @@ pub fn operator_sum(buffer: &mut Number, left: OperandSource, right: OperandSour
                     trace!("operator_sum: get bits: {:?}", bits);
                     buffer.add_bools(bits);
                 },
-                NamedAccessSource(_) => {}
+                NamedAccessSource(_) => {},
+                Empty => panic!("no second operand!")
             }
         },
         RangeSource(source_range) => {
             match left {
                 DirectSource(_) => panic!("The left side of an expression cannot be represented by an immediate value"), // will never be here
                 RangeSource(target_range) => {
-                    let bits = buffer.get_bits(source_range).to_owned();
-                    buffer.set_bits(target_range, &bits[..]);
+                    todo!()
                 },
-                NamedAccessSource(_) => {}
+                NamedAccessSource(_) => {},
+                Empty => panic!("no second operand!")
             }
         }
-        NamedAccessSource(_) => {}
+        NamedAccessSource(_) => {},
+        Empty => panic!("no first operand!")
     }
     Historical
 }

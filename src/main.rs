@@ -11,6 +11,7 @@ use syntax::parse;
 use operators::{HandlerResult};
 
 fn print_ui(number: &Number) {
+    println!();
     println!("{}", number);
 }
 
@@ -47,16 +48,20 @@ fn main() {
                 trace!("commands: {}", commands);
                 let command_list = commands.split(";").collect::<Vec<_>>();
                 for command in command_list {
-                    match generate_executor(command) {
-                        Ok(executor) => {
-                            editor.add_history_entry(command);
-                            match executor(&mut main_buffer) {
-                                HandlerResult::Message(message) => println!(": {}", message),
-                                HandlerResult::Historical => (),
-                                HandlerResult::Nonhistorical => ()
+                    if !command.is_empty() {
+                        match generate_executor(command) {
+                            Ok(executor) => {
+                                editor.add_history_entry(command);
+                                match executor(&mut main_buffer) {
+                                    HandlerResult::Message(message) => println!("{}", message),
+                                    HandlerResult::Historical => (),
+                                    HandlerResult::Nonhistorical => ()
+                                }
                             }
+                            Err(message) => println!("error: {}", message)
                         }
-                        Err(message) => println!("error: {}", message)
+                    } else {
+                        trace!("empty command")
                     }
                 }
             },
