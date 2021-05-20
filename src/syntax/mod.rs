@@ -73,7 +73,7 @@ impl<'a> ParsingIterator<'a> {
         self.offset += n;
         self
     }
-    pub fn rewind(mut self) -> Self {
+    pub fn rewind(self) -> Self {
         self.rewind_n(1)
     }
 }

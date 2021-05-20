@@ -189,7 +189,7 @@ impl Number {
     }
 
     fn to_string(&self, radix: u32) -> String {
-        if radix != 10 {
+        if radix != 2 {
             todo!("implement radix base formatting");
         }
         let mut res = String::with_capacity(self.max_size);
@@ -204,15 +204,16 @@ impl Number {
 }
 
 impl Display for Number {
+    // TODO colored output
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         // write first index line
-        write!(f, "   ");
+        write!(f, "   ").unwrap();
         let mut first_index_line = self.max_size as i32 - 1;
         while first_index_line >= 0 {
             write!(f, "{}", format!("{:<2}{:>7}  ", first_index_line, first_index_line - 7)).unwrap();
             first_index_line -= 8;
         }
-        writeln!(f, "");
+        writeln!(f, "").unwrap();
 
         // write bits
         let sign_char = match self.buffer.last() {
@@ -220,7 +221,7 @@ impl Display for Number {
             Some(false) if self.is_signed => '+',
             _ => 'u'
         };
-        write!(f, "{}  ", sign_char);
+        write!(f, "{}  ", sign_char).unwrap();
         for _ in self.buffer.len()..self.max_size {
             write!(f, "{}", 0).unwrap();
         }
@@ -238,10 +239,10 @@ impl Display for Number {
                 write!(f, " ").unwrap();
             }
         }
-        writeln!(f, "");
+        writeln!(f, "").unwrap();
 
         // write second index line
-        write!(f, "c {}", if self.carry { '1' } else { '0' });
+        write!(f, "c {}", if self.carry { '1' } else { '0' }).unwrap();
         let mut second_index_line = self.max_size as i32 - 4;
         while second_index_line >= 0 {
             //  60 59
@@ -255,182 +256,182 @@ impl Display for Number {
 #[test]
 fn add_test_add_by_one() {
     let mut n = Number::from("0", 10);
-    assert_eq!("00000000", n.to_string(10));
+    assert_eq!("00000000", n.to_string(2));
     n.add_number(1);
-    assert_eq!("00000001", n.to_string(10));
+    assert_eq!("00000001", n.to_string(2));
     n.add_number(1);
-    assert_eq!("00000010", n.to_string(10));
+    assert_eq!("00000010", n.to_string(2));
     n.add_number(1);
-    assert_eq!("00000011", n.to_string(10));
+    assert_eq!("00000011", n.to_string(2));
     n.add_number(1);
-    assert_eq!("00000100", n.to_string(10));
+    assert_eq!("00000100", n.to_string(2));
 
     let mut n = Number::from("0", 10);
     n.add_number(u32::MAX);
-    // assert_eq!("11111111111111111111111111111111", n.to_string(10));
-    assert_eq!("11111111", n.to_string(10));
+    // assert_eq!("11111111111111111111111111111111", n.to_string(2));
+    assert_eq!("11111111", n.to_string(2));
 
     let mut n = Number::from("1", 10);
     n.add_number(u32::MAX);
-    // assert_eq!("00000000000000000000000000000000", n.to_string(10));
-    assert_eq!("00000000", n.to_string(10));
+    // assert_eq!("00000000000000000000000000000000", n.to_string(2));
+    assert_eq!("00000000", n.to_string(2));
 }
 
 #[test]
 fn add_test_add_three() {
     let mut n = Number::from("0", 10);
-    assert_eq!("00000000", n.to_string(10));
+    assert_eq!("00000000", n.to_string(2));
     n.add_number(3);
-    assert_eq!("00000011", n.to_string(10));
+    assert_eq!("00000011", n.to_string(2));
 }
 
 #[test]
 fn add_bools_test() {
     let mut n = Number::from("0", 10);
     n.add_bools(&[true]);
-    assert_eq!("00000001", n.to_string(10));
+    assert_eq!("00000001", n.to_string(2));
     n.add_bools(&[true]);
-    assert_eq!("00000010", n.to_string(10));
+    assert_eq!("00000010", n.to_string(2));
     n.add_bools(&[true]);
-    assert_eq!("00000011", n.to_string(10));
+    assert_eq!("00000011", n.to_string(2));
     n.add_bools(&[true]);
-    assert_eq!("00000100", n.to_string(10));
+    assert_eq!("00000100", n.to_string(2));
 
     let mut n = Number::from("15", 10);
     n.add_bools(&[true]);
-    assert_eq!("00010000", n.to_string(10));
+    assert_eq!("00010000", n.to_string(2));
 
     n.add_bools(&[true, false]);
-    assert_eq!("00010001", n.to_string(10));
+    assert_eq!("00010001", n.to_string(2));
 
     let mut n = Number::from("0", 10);
     n.add_bools(&[true, true]);
-    assert_eq!("00000011", n.to_string(10));
+    assert_eq!("00000011", n.to_string(2));
 
     let mut n = Number::from("1", 10);
     n.add_bools(&[false, true]);
-    assert_eq!("00000011", n.to_string(10));
+    assert_eq!("00000011", n.to_string(2));
 }
 
 #[test]
 fn add_vecs_test_add_all_false() {
     let mut n = Number::from("0", 10);
-    assert_eq!("00000000", n.to_string(10));
+    assert_eq!("00000000", n.to_string(2));
     n.add_number(0);
-    assert_eq!("00000000", n.to_string(10));
+    assert_eq!("00000000", n.to_string(2));
 
     let mut n = Number::from("0", 10);
     n.add_number(1);
-    assert_eq!("00000001", n.to_string(10));
+    assert_eq!("00000001", n.to_string(2));
 
     let mut n = Number::from("0", 10);
     n.add_number(10);
-    assert_eq!("00001010", n.to_string(10));
+    assert_eq!("00001010", n.to_string(2));
 
     let mut n = Number::from("1", 10);
     n.add_number(10);
-    assert_eq!("00001011", n.to_string(10));
+    assert_eq!("00001011", n.to_string(2));
 }
 
 #[test]
 fn mul_number_test() {
     let mut n = Number::from("0", 10);
     n.mul_number(142);
-    assert_eq!("00000000", n.to_string(10));
+    assert_eq!("00000000", n.to_string(2));
 
     let mut n = Number::from("10", 10);
     n.mul_number(1);
-    assert_eq!("00001010", n.to_string(10));
+    assert_eq!("00001010", n.to_string(2));
 
     let mut n = Number::from("1", 10);
-    assert_eq!("00000001", n.to_string(10));
+    assert_eq!("00000001", n.to_string(2));
     n.mul_number(10);
-    assert_eq!("00001010", n.to_string(10));
+    assert_eq!("00001010", n.to_string(2));
 
     let mut n = Number::from("1", 10);
     n.mul_number(16);
-    assert_eq!("00010000", n.to_string(10));
+    assert_eq!("00010000", n.to_string(2));
 }
 
 #[test]
 fn from_str_r10() {
     let n = Number::from("0", 10);
-    assert_eq!("00000000", n.to_string(10));
+    assert_eq!("00000000", n.to_string(2));
 
     let n = Number::from("1", 10);
-    assert_eq!("00000001", n.to_string(10));
+    assert_eq!("00000001", n.to_string(2));
 
     let n = Number::from("2", 10);
-    assert_eq!("00000010", n.to_string(10));
+    assert_eq!("00000010", n.to_string(2));
 
     let n = Number::from("9", 10);
-    assert_eq!("00001001", n.to_string(10));
+    assert_eq!("00001001", n.to_string(2));
 
     let n = Number::from("10", 10);
-    assert_eq!("00001010", n.to_string(10));
+    assert_eq!("00001010", n.to_string(2));
 
     let n = Number::from("15", 10);
-    assert_eq!("00001111", n.to_string(10));
+    assert_eq!("00001111", n.to_string(2));
 
     let n = Number::from("16", 10);
-    assert_eq!("00010000", n.to_string(10));
+    assert_eq!("00010000", n.to_string(2));
 
     let n = Number::from(&*u8::MAX.to_string(), 10);
-    assert_eq!("11111111", n.to_string(10));
+    assert_eq!("11111111", n.to_string(2));
 
     let n = Number::from(&*u32::MAX.to_string(), 10);
-    assert_eq!("11111111111111111111111111111111", n.to_string(10));
+    assert_eq!("11111111111111111111111111111111", n.to_string(2));
 
     let n = Number::from("2147483648", 10);
-    assert_eq!("10000000000000000000000000000000", n.to_string(10));
+    assert_eq!("10000000000000000000000000000000", n.to_string(2));
 }
 
 #[test]
 fn from_str_r2() {
     let n = Number::from("10000000000000000000000000000000", 2);
-    assert_eq!("10000000000000000000000000000000", n.to_string(10));
+    assert_eq!("10000000000000000000000000000000", n.to_string(2));
 
     let n = Number::from("0", 2);
-    assert_eq!("00000000", n.to_string(10));
+    assert_eq!("00000000", n.to_string(2));
 
     let n = Number::from("1", 2);
-    assert_eq!("00000001", n.to_string(10));
+    assert_eq!("00000001", n.to_string(2));
 
     let n = Number::from("10", 2);
-    assert_eq!("00000010", n.to_string(10));
+    assert_eq!("00000010", n.to_string(2));
 
     let n = Number::from("1010", 2);
-    assert_eq!("00001010", n.to_string(10));
+    assert_eq!("00001010", n.to_string(2));
 
     let n = Number::from("1111", 2);
-    assert_eq!("00001111", n.to_string(10));
+    assert_eq!("00001111", n.to_string(2));
 
     let n = Number::from("11111", 2);
-    assert_eq!("00011111", n.to_string(10));
+    assert_eq!("00011111", n.to_string(2));
 
     let n = Number::from("1111111111111111111111111111111111111111", 2);
-    assert_eq!("1111111111111111111111111111111111111111", n.to_string(10));
+    assert_eq!("1111111111111111111111111111111111111111", n.to_string(2));
 }
 
 #[test]
 fn from_str_r8() {
     let n = Number::from("1111", 8);
-    assert_eq!("0000001001001001", n.to_string(10));
+    assert_eq!("0000001001001001", n.to_string(2));
 }
 
 #[test]
 fn from_str_r16() {
     let n = Number::from("F", 16);
-    assert_eq!("00001111", n.to_string(10));
+    assert_eq!("00001111", n.to_string(2));
 
     let n = Number::from("10", 16);
-    assert_eq!("00010000", n.to_string(10));
+    assert_eq!("00010000", n.to_string(2));
 
     let n = Number::from("1F", 16);
-    assert_eq!("00011111", n.to_string(10));
+    assert_eq!("00011111", n.to_string(2));
 
     let n = Number::from("AF", 16);
-    assert_eq!("10101111", n.to_string(10));
+    assert_eq!("10101111", n.to_string(2));
 }
 
 #[test]

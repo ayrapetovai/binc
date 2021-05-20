@@ -16,15 +16,17 @@ use HandlerResult::Historical;
 use OperandSource::DirectSource;
 use OperandSource::RangeSource;
 use OperandSource::NamedAccessSource;
+use OperandSource::Empty;
 
 pub type Operator = fn(buffer: &mut Number, left: OperandSource, right: OperandSource) -> HandlerResult;
 
+// TODO colored output
 pub fn operator_show_help(_: &mut Number, _: OperandSource, _: OperandSource) -> HandlerResult {
     Message(
-"X operator (Y|X): >> << >>> <<< + - * / pow sqrt > < s<< s>> s>>> s<<< ^ & | <> == = count
+"X operator Y: >> << >>> <<< + - * / pow sqrt > < s<< s>> s>>> s<<< ^ & | <> == = count
 operator X: ! random shuffle reverse ~
-X, Y: [] [i] [:] [i:] [:j] [i:j] c; e f
-Y: 1 3.14 -0; -inf +inf NaN eps
+X and Y can be: [] [i] [:] [i:] [:j] [i:j] c; e f
+only Y can be: 1 3.14 -0; -inf +inf NaN eps
 commands: intX floatX fixedX printf signed unsigned history undo redo about ?".to_owned()
     )
 }
