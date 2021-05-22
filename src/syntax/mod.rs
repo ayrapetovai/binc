@@ -24,19 +24,18 @@ pub struct ParsingIterator<'a> {
     offset: usize,
 }
 
-// TODO skip spaces and tabs?
 impl<'a> ParsingIterator<'a> {
     pub fn from(source_string: &'a str) -> Result<Self, &str> {
-        let bytes = source_string.as_bytes();
-        if !bytes.is_ascii() {
+        let source = source_string.as_bytes();
+        if !source.is_ascii() {
             Err("given string is not ascii")
         } else {
-            Ok(
-                Self {
-                    source: bytes,
-                    offset: 0,
-                }
-            )
+            // skip leading whitespaces
+            let mut offset = 0;
+            while offset < source.len() && (source[offset] as char).is_whitespace() {
+                offset += 1;
+            }
+            Ok(Self { source, offset })
         }
     }
     pub fn current(&self) -> Option<char> {
@@ -46,18 +45,12 @@ impl<'a> ParsingIterator<'a> {
             None
         }
     }
-    // TODO remove
-    pub fn current_2(&self) -> Option<(char, char)> {
-        if self.offset + 1 < self.source.len() {
-            Some((self.source[self.offset] as char, self.source[self.offset + 1] as char))
-        } else {
-            None
-        }
-    }
     pub fn match_from_current(&self, sequence: &str) -> bool {
         let bytes = sequence.as_bytes();
         for i in 0..sequence.len() {
-            if self.offset + i >= self.source.len() || self.source[self.offset + i] != bytes[i] {
+            if self.offset + i >= self.source.len() || self.source[self.offset + i] != bytes[i] &&
+                !(self.source[self.offset + i] as char).is_whitespace()
+            {
                 return false
             }
         }
@@ -67,14 +60,26 @@ impl<'a> ParsingIterator<'a> {
         if self.offset < self.source.len() {
             self.offset += 1;
         }
+        while self.offset < self.source.len() && (self.source[self.offset] as char).is_whitespace() {
+            self.offset += 1;
+        }
         self.current()
     }
     pub fn rewind_n(mut self, n: usize) -> Self {
-        self.offset += n;
+        let mut skip_counter = 0;
+        while self.offset < self.source.len() && skip_counter < n {
+            self.offset += 1;
+            if self.offset < self.source.len() && !(self.source[self.offset] as char).is_whitespace() {
+                skip_counter += 1;
+            }
+        }
         self
     }
     pub fn rewind(self) -> Self {
         self.rewind_n(1)
+    }
+    fn rest(&self) -> &[u8] {
+        &self.source[self.offset..]
     }
 }
 
@@ -218,9 +223,8 @@ fn syntax_number(mut it: ParsingIterator, radix: u32) -> Result<(ParsingIterator
 
 pub fn parse(cmd: &str) -> Result<(OperandSource, Operator, OperandSource), String> {
     trace!("parse");
-    let space_free_cmd: String = cmd.chars().filter(| c| !c.is_whitespace()).collect();
     let (it_after_first_operand, left_operand_source) = match syntax_accessor(
-        match ParsingIterator::from(&space_free_cmd) {
+        match ParsingIterator::from(&cmd) {
             Err(msg) => return Err(format!("Cannot create parser for command '{}': ", cmd) + msg),
             Ok(it) => it
         }
@@ -239,7 +243,7 @@ pub fn parse(cmd: &str) -> Result<(OperandSource, Operator, OperandSource), Stri
     };
     trace!("parse {:?} {:?}", left_operand_source, right_operand_source);
     if it_after_second_operand.current() != None {
-        return Err("Could not parse all symbols in command".to_owned())
+        return Err(format!("Could not parse all symbols in command, left '{}'", String::from_utf8_lossy(it_after_second_operand.rest())).to_owned())
     }
     Ok((left_operand_source, operator_handler, right_operand_source))
 }
@@ -274,7 +278,7 @@ fn parsing_iterator_from() {
     }
     match it.next() {
         Some('b') => {}, // success
-        _ => panic!("next value for iterator with empty string must be Some letter")
+        x => panic!("next value for iterator with empty string must be Some letter, was {:?}, index {}", x, it.offset)
     }
     assert_eq!(1, it.offset);
 }
@@ -304,6 +308,45 @@ fn parsing_iterator_match_from_current() {
     assert_eq!(None, it.current());
     assert!(!it.match_from_current("c"));
     assert!(!it.match_from_current("abc"));
+}
+
+#[test]
+fn parsing_iterator_skip_whitespaces() {
+    let mut it = ParsingIterator::from("   ").unwrap();
+    assert_eq!(None, it.current());
+    assert_eq!(None, it.next());
+
+    let mut it = ParsingIterator::from("  a  ").unwrap();
+    assert_eq!(Some('a'), it.current());
+    assert_eq!(None, it.next());
+
+    let mut it = ParsingIterator::from(" 12\t 3  ").unwrap();
+    assert!(it.match_from_current("123"));
+
+    while let Some(c) = it.current() {
+        assert_ne!(' ', c);
+        assert_ne!('\t', c);
+        it.next();
+    }
+
+    let mut it = ParsingIterator::from(" 12\t 3  ").unwrap();
+    assert_ne!(Some(' '), it.current());
+    while let Some(c) = it.next() {
+        assert_ne!(' ', c);
+        assert_ne!('\t', c);
+    }
+    let mut it = ParsingIterator::from(" 12\t 3abc").unwrap();
+    let it = it.rewind_n(3);
+    assert_eq!(6, it.offset);
+    assert!(it.match_from_current("abc"));
+
+    let mut it = ParsingIterator::from(" \t[ 0 ]   =  1").unwrap();
+    let pat = "[0]=1".as_bytes();
+    assert_eq!(Some(*pat.first().unwrap() as char), it.current());
+    for i in 1..pat.len() {
+        it = it.rewind();
+        assert_eq!(Some(pat[i] as char), it.current());
+    }
 }
 
 #[test]
