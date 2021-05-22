@@ -207,13 +207,13 @@ impl Display for Number {
     // TODO colored output
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         // write first index line
-        write!(f, "   ").unwrap();
+        write!(f, "   ")?;
         let mut first_index_line = self.max_size as i32 - 1;
         while first_index_line >= 0 {
-            write!(f, "{}", format!("{:<2}{:>7}  ", first_index_line, first_index_line - 7)).unwrap();
+            write!(f, "{}", format!("{:<2}{:>7}  ", first_index_line, first_index_line - 7))?;
             first_index_line -= 8;
         }
-        writeln!(f, "").unwrap();
+        writeln!(f, "")?;
 
         // write bits
         let sign_char = match self.buffer.last() {
@@ -221,9 +221,9 @@ impl Display for Number {
             Some(false) if self.is_signed => '+',
             _ => 'u'
         };
-        write!(f, "{}  ", sign_char).unwrap();
+        write!(f, "{}  ", sign_char)?;
         for _ in self.buffer.len()..self.max_size {
-            write!(f, "{}", 0).unwrap();
+            write!(f, "{}", 0)?;
         }
         let mut count = 0;
         for b in self.buffer.iter().take(self.buffer.len()).rev() {
@@ -231,22 +231,22 @@ impl Display for Number {
             match b {
                 true => write!(f, "{}", 1),
                 false => write!(f, "{}", 0)
-            }.unwrap();
+            }?;
             if count % 4 == 0 {
-                write!(f, " ").unwrap();
+                write!(f, " ")?;
             }
             if count % 8 == 0 {
-                write!(f, " ").unwrap();
+                write!(f, " ")?;
             }
         }
-        writeln!(f, "").unwrap();
+        writeln!(f, "")?;
 
         // write second index line
-        write!(f, "c {}", if self.carry { '1' } else { '0' }).unwrap();
+        write!(f, "c {}", if self.carry { '1' } else { '0' })?;
         let mut second_index_line = self.max_size as i32 - 4;
         while second_index_line >= 0 {
             //  60 59
-            write!(f, "{}", format!("{:>4} {:<4}  ", second_index_line, second_index_line - 1)).unwrap();
+            write!(f, "{}", format!("{:>4} {:<4}  ", second_index_line, second_index_line - 1))?;
             second_index_line -= 8;
         }
         Ok(())
