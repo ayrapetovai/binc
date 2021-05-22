@@ -62,10 +62,10 @@ fn main() {
                                             println!("{}", message)
                                         }
                                     }
-                                    Err(err_msg) => println!("error: {}", err_msg)
+                                    Err(err_msg) => println!("operation error: {}", err_msg)
                                 }
                             }
-                            Err(err_msg) => println!("error: {}", err_msg)
+                            Err(err_msg) => println!("parsing error: {}", err_msg)
                         }
                     } else {
                         trace!("empty command")

@@ -60,7 +60,7 @@ impl Number {
                 panic!("Letter '{}' cannot be used for number notation in base {}", c, radix);
             }
         }
-        new_number.max_size = (new_number.buffer.len() / 8 + if new_number.buffer.len() % 8 != 0 { 1 } else { 0 }) * 8;
+        new_number.max_size = power_of_two(new_number.buffer.len());
         let mut buf = vec![false; new_number.max_size];
         for i in 0..new_number.buffer.len() {
             buf[i] = new_number.buffer[i];
@@ -200,6 +200,20 @@ impl Number {
             }
         }
         res
+    }
+}
+
+// TODO make an arithmetic expression
+fn power_of_two(length: usize) -> usize {
+    match length {
+        0..=8 => 8,
+        9..=16 => 16,
+        17..=32 => 32,
+        33..=64 => 64,
+        65..=128 => 128,
+        129..=256 => 256,
+        257..=512 => 512,
+        _ => panic!("number is too big")
     }
 }
 
@@ -410,7 +424,7 @@ fn from_str_r2() {
     assert_eq!("00011111", n.to_string(2));
 
     let n = Number::from("1111111111111111111111111111111111111111", 2);
-    assert_eq!("1111111111111111111111111111111111111111", n.to_string(2));
+    assert_eq!("0000000000000000000000001111111111111111111111111111111111111111", n.to_string(2));
 }
 
 #[test]
