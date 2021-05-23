@@ -174,6 +174,17 @@ fn syntax_operator(it: ParsingIterator) -> (ParsingIterator, Option<Operator>) {
     }
 }
 
+fn syntax_negative_number(it: ParsingIterator) -> Result<(ParsingIterator, RightOperandSource), String> {
+    match it.current() {
+        Some(c) => match c {
+            '1'..='9' => syntax_number(it, 10, true),
+            '0' => syntax_radix_number(it.rewind(), true),
+            _ => Err("bad number syntax".to_owned())
+        }
+        None => Err("bad negative number syntax".to_owned())
+    }
+}
+
 fn syntax_rvalue(it: ParsingIterator) -> Result<(ParsingIterator, RightOperandSource), String> {
     trace!("syntax_rvalue: with current symbol '{:?}'", it.current());
     match it.current() {
@@ -183,22 +194,23 @@ fn syntax_rvalue(it: ParsingIterator) -> Result<(ParsingIterator, RightOperandSo
                 Ok((_, None)) => Err("range access in right value must be correct".to_owned()),
                 Err(message) => Err(message)
             },
-            '1'..='9' => syntax_number(it, 10),
-            '0' => syntax_radix_number(it.rewind()),
+            '1'..='9' => syntax_number(it, 10, false),
+            '0' => syntax_radix_number(it.rewind(), false),
+            '-' => syntax_negative_number(it.rewind()),
             _ => Err("bad number syntax".to_owned())
         }
         None => Ok((it, RightOperandSource::Empty))
     }
 }
 
-fn syntax_radix_number(it: ParsingIterator) -> Result<(ParsingIterator, RightOperandSource), String> {
+fn syntax_radix_number(it: ParsingIterator, is_negative: bool) -> Result<(ParsingIterator, RightOperandSource), String> {
     trace!("syntax_radix_number: with current symbol '{:?}'", it.current());
     match it.current() {
         Some(c) => match c {
-            'b' | 'B' => syntax_number(it.rewind(), 2),
-            'o' | 'O' => syntax_number(it.rewind(), 8),
-            'd' | 'D' => syntax_number(it.rewind(), 10),
-            'h' | 'H' | 'x' | 'X' => syntax_number(it.rewind(), 16),
+            'b' | 'B' => syntax_number(it.rewind(), 2, is_negative),
+            'o' | 'O' => syntax_number(it.rewind(), 8, is_negative),
+            'd' | 'D' => syntax_number(it.rewind(), 10, is_negative),
+            'h' | 'H' | 'x' | 'X' => syntax_number(it.rewind(), 16, is_negative),
             '(' =>
                 if let (it_after_arbitrary_radix, Some(radix)) = syntax_index(it.rewind()) {
                     match it_after_arbitrary_radix.current() {
@@ -206,7 +218,7 @@ fn syntax_radix_number(it: ParsingIterator) -> Result<(ParsingIterator, RightOpe
                             if radix > 37 { // length('0'..='9') + length('a'..='z')
                                 return Err(format!("Arbitrary radix is too big - {}, must be small enough to write numbers in it with '0'..'9' + 'a'..'z'", { radix }))
                             }
-                            syntax_number(it_after_arbitrary_radix.rewind(), radix as u32)
+                            syntax_number(it_after_arbitrary_radix.rewind(), radix as u32, is_negative)
                         }
                         _ => Err("Arbitrary radix must be closed with ')'".to_owned())
                     }
@@ -219,9 +231,12 @@ fn syntax_radix_number(it: ParsingIterator) -> Result<(ParsingIterator, RightOpe
     }
 }
 
-fn syntax_number(mut it: ParsingIterator, radix: u32) -> Result<(ParsingIterator, RightOperandSource), String> {
+fn syntax_number(mut it: ParsingIterator, radix: u32, is_negative: bool) -> Result<(ParsingIterator, RightOperandSource), String> {
     trace!("syntax_number: with current symbol {:?}, radix {}", it.current(), radix);
     let mut number_literal = String::with_capacity(64);
+    if is_negative {
+        number_literal.push('-')
+    }
     while let Some(c) = it.current() {
         match c {
             '0'..='9' => number_literal.push(c),
