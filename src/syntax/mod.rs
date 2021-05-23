@@ -1,7 +1,6 @@
 use crate::number::{Number, BitsIndexRange, BitsIndex};
 use crate::operators::{Operator, operator_show_help, operator_assign, operator_sum, operator_unsigned_shift_left};
 use log::{info, trace, warn};
-use crate::syntax::OperandSource::Empty;
 
 #[derive(Debug)]
 pub enum NamedAccess {
@@ -12,11 +11,17 @@ pub enum NamedAccess {
 }
 
 #[derive(Debug)]
-pub enum OperandSource {
+pub enum LeftOperandSource {
+    RangeSource(BitsIndexRange),
+    NamedAccessSource(NamedAccess),
+}
+
+#[derive(Debug)]
+pub enum RightOperandSource {
     RangeSource(BitsIndexRange),
     NamedAccessSource(NamedAccess),
     DirectSource(Number),
-    Empty
+    Empty,
 }
 
 pub struct ParsingIterator<'a> {
@@ -124,14 +129,14 @@ fn syntax_range(it: ParsingIterator) -> (ParsingIterator, BitsIndexRange) {
     (it_after_index, BitsIndexRange(range_left_index, range_right_index))
 }
 
-fn syntax_accessor(it: ParsingIterator) -> Result<(ParsingIterator, Option<OperandSource>), String> {
+fn syntax_accessor(it: ParsingIterator) -> Result<(ParsingIterator, Option<BitsIndexRange>), String> {
     match it.current() {
         Some(c) => match c {
             '[' => {
                 let (current_it, range) = syntax_range(it.rewind());
                 if let Some(c) = current_it.current() {
                     if c == ']' {
-                        Ok((current_it.rewind(), Some(OperandSource::RangeSource(range))))
+                        Ok((current_it.rewind(), Some(range)))
                     } else {
                         Err("Accessor [] is not closed with ']'".to_owned())
                     }
@@ -161,12 +166,12 @@ fn syntax_operator(it: ParsingIterator) -> (ParsingIterator, Option<Operator>) {
     }
 }
 
-fn syntax_rvalue(it: ParsingIterator) -> Result<(ParsingIterator, OperandSource), String> {
+fn syntax_rvalue(it: ParsingIterator) -> Result<(ParsingIterator, RightOperandSource), String> {
     trace!("syntax_rvalue: with current symbol '{:?}'", it.current());
     match it.current() {
         Some(c) => match c {
             '[' => match syntax_accessor(it) {
-                Ok((it, Some(ops))) => Ok((it, ops)),
+                Ok((it, Some(ops))) => Ok((it, RightOperandSource::RangeSource(ops))),
                 Ok((_, None)) => Err("range access in right value must be correct".to_owned()),
                 Err(message) => Err(message)
             },
@@ -174,11 +179,11 @@ fn syntax_rvalue(it: ParsingIterator) -> Result<(ParsingIterator, OperandSource)
             '0' => syntax_radix_number(it.rewind()),
             _ => Err("bad number syntax".to_owned())
         }
-        None => Ok((it, Empty))
+        None => Ok((it, RightOperandSource::Empty))
     }
 }
 
-fn syntax_radix_number(it: ParsingIterator) -> Result<(ParsingIterator, OperandSource), String> {
+fn syntax_radix_number(it: ParsingIterator) -> Result<(ParsingIterator, RightOperandSource), String> {
     trace!("syntax_radix_number: with current symbol '{:?}'", it.current());
     match it.current() {
         Some(c) => match c {
@@ -202,11 +207,11 @@ fn syntax_radix_number(it: ParsingIterator) -> Result<(ParsingIterator, OperandS
                 }
             _ => Err(format!("bad radix letter '{}'", c))
         },
-        None => Ok((it, OperandSource::DirectSource(Number::from("0", 10))))
+        None => Ok((it, RightOperandSource::DirectSource(Number::from("0", 10))))
     }
 }
 
-fn syntax_number(mut it: ParsingIterator, radix: u32) -> Result<(ParsingIterator, OperandSource), String> {
+fn syntax_number(mut it: ParsingIterator, radix: u32) -> Result<(ParsingIterator, RightOperandSource), String> {
     trace!("syntax_number: with current symbol {:?}, radix {}", it.current(), radix);
     let mut number_literal = String::with_capacity(64);
     while let Some(c) = it.current() {
@@ -218,10 +223,10 @@ fn syntax_number(mut it: ParsingIterator, radix: u32) -> Result<(ParsingIterator
         it.next();
     }
     trace!("syntax_number: number literal '{}'", number_literal);
-    Ok((it, OperandSource::DirectSource(Number::from(&number_literal, radix))))
+    Ok((it, RightOperandSource::DirectSource(Number::from(&number_literal, radix))))
 }
 
-pub fn parse(cmd: &str) -> Result<(OperandSource, Operator, OperandSource), String> {
+pub fn parse(cmd: &str) -> Result<(LeftOperandSource, Operator, RightOperandSource), String> {
     trace!("parse: command '{}'", cmd);
     let (it_after_first_operand, left_operand_source) = match syntax_accessor(
         match ParsingIterator::from(&cmd) {
@@ -229,8 +234,8 @@ pub fn parse(cmd: &str) -> Result<(OperandSource, Operator, OperandSource), Stri
             Ok(it) => it
         }
     ) {
-        Ok((it, Some(ops))) => (it, ops),
-        Ok((it, None)) => (it, OperandSource::RangeSource(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit))),
+        Ok((it, Some(ops))) => (it, LeftOperandSource::RangeSource(ops)),
+        Ok((it, None)) => (it, LeftOperandSource::RangeSource(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit))),
         Err(message) => return Err(message)
     };
     let (it_after_operator, operator_handler) = match syntax_operator(it_after_first_operand) {
