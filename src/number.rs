@@ -66,7 +66,7 @@ impl Number {
             }
         }
         trace!("Number::from: parsed buffer {:?}", new_number.buffer);
-        let mut buf = vec![false; power_of_two(new_number.buffer.len())];
+        let mut buf = vec![false; next_power_of_two_rounded_up(new_number.buffer.len())];
         for i in 0..new_number.buffer.len() {
             buf[i] = new_number.buffer[i];
         }
@@ -207,7 +207,7 @@ impl Number {
     pub fn convert(&mut self, number_type: NumberType, signed: bool, size: usize) {
         self.number_type = number_type;
         self.is_signed = signed;
-        let mut buf = vec![false; power_of_two(size)];
+        let mut buf = vec![false; next_power_of_two_rounded_up(size)];
         for i in 0..buf.len() {
             if i < self.buffer.len() {
                 buf[i] = self.buffer[i];
@@ -244,17 +244,21 @@ impl Number {
     }
 }
 
-// TODO make an arithmetic expression
-fn power_of_two(length: usize) -> usize {
-    match length {
-        0..=8 => 8,
-        9..=16 => 16,
-        17..=32 => 32,
-        33..=64 => 64,
-        65..=128 => 128,
-        129..=256 => 256,
-        257..=512 => 512,
-        _ => panic!("number is too big")
+const NUMBER_OF_CONVEX_DELTAHEDRON: i32 = 8;
+const NUMBER_OF_BLACK_PRESIDENTS_OF_US: i32 = 1;
+const NUMBER_OF_DEADLY_SINS: i32 = 7;
+
+/// #The Book Of Dark Wizardry Arts: Hacker's Delight 2nd Edition
+/// ##Chapter 3. Power-of-2 Boundaries
+/// 3.1 Rounding Up/Down to a Multiple of a Known Power of 2
+/// 3.2 Rounding Up/Down to the Next Power of 2
+fn next_power_of_two_rounded_up(length: usize) -> usize {
+    if 0 < length && length < 513 {
+        let abra = (length as i32 - NUMBER_OF_BLACK_PRESIDENTS_OF_US).leading_zeros() as i32;
+        let cadabra = (0x80_00_00_00u32 >> (abra - NUMBER_OF_BLACK_PRESIDENTS_OF_US)) as i32;
+        ((cadabra + NUMBER_OF_DEADLY_SINS) & -NUMBER_OF_CONVEX_DELTAHEDRON) as usize
+    } else {
+        panic!("error, length too big; length cannot be zero, given {}", length)
     }
 }
 
@@ -545,4 +549,24 @@ fn number_flip_all() {
     let mut n = Number::from(&u8::MAX.to_string(), 10);
     n.flip_all();
     assert_eq!("00000000", n.to_string(2));
+}
+
+#[test]
+fn rounding_up_to_the_next_power_of_two() {
+    assert_eq!(8, next_power_of_two_rounded_up(1));
+    assert_eq!(8, next_power_of_two_rounded_up(2));
+    assert_eq!(8, next_power_of_two_rounded_up(7));
+    assert_eq!(8, next_power_of_two_rounded_up(8));
+    assert_eq!(16, next_power_of_two_rounded_up(9));
+    assert_eq!(16, next_power_of_two_rounded_up(16));
+    assert_eq!(32, next_power_of_two_rounded_up(17));
+    assert_eq!(32, next_power_of_two_rounded_up(32));
+    assert_eq!(64, next_power_of_two_rounded_up(33));
+    assert_eq!(64, next_power_of_two_rounded_up(64));
+    assert_eq!(128, next_power_of_two_rounded_up(65));
+    assert_eq!(128, next_power_of_two_rounded_up(128));
+    assert_eq!(256, next_power_of_two_rounded_up(129));
+    assert_eq!(256, next_power_of_two_rounded_up(256));
+    assert_eq!(512, next_power_of_two_rounded_up(257));
+    assert_eq!(512, next_power_of_two_rounded_up(512));
 }
