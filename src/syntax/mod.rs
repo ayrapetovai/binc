@@ -120,7 +120,7 @@ fn syntax_range(it: ParsingIterator) -> (ParsingIterator, BitsIndexRange) {
     } else {
         (it_after_index, BitsIndex::LowestBit)
     };
-    trace!("syntax_range: ({:?}, {:?})", range_left_index, range_right_index);
+    trace!("syntax_range: resulting range ({:?}, {:?})", range_left_index, range_right_index);
     (it_after_index, BitsIndexRange(range_left_index, range_right_index))
 }
 
@@ -162,7 +162,7 @@ fn syntax_operator(it: ParsingIterator) -> (ParsingIterator, Option<Operator>) {
 }
 
 fn syntax_rvalue(it: ParsingIterator) -> Result<(ParsingIterator, OperandSource), String> {
-    trace!("syntax_rvalue, with current '{:?}'", it.current());
+    trace!("syntax_rvalue: with current symbol '{:?}'", it.current());
     match it.current() {
         Some(c) => match c {
             '[' => match syntax_accessor(it) {
@@ -179,7 +179,7 @@ fn syntax_rvalue(it: ParsingIterator) -> Result<(ParsingIterator, OperandSource)
 }
 
 fn syntax_radix_number(it: ParsingIterator) -> Result<(ParsingIterator, OperandSource), String> {
-    trace!("syntax_radix_number, with current '{:?}'", it.current());
+    trace!("syntax_radix_number: with current symbol '{:?}'", it.current());
     match it.current() {
         Some(c) => match c {
             'b' | 'B' => syntax_number(it.rewind(), 2),
@@ -207,7 +207,7 @@ fn syntax_radix_number(it: ParsingIterator) -> Result<(ParsingIterator, OperandS
 }
 
 fn syntax_number(mut it: ParsingIterator, radix: u32) -> Result<(ParsingIterator, OperandSource), String> {
-    trace!("syntax_number");
+    trace!("syntax_number: with current symbol {:?}, radix {}", it.current(), radix);
     let mut number_literal = String::with_capacity(64);
     while let Some(c) = it.current() {
         match c {
@@ -217,12 +217,12 @@ fn syntax_number(mut it: ParsingIterator, radix: u32) -> Result<(ParsingIterator
         }
         it.next();
     }
-    trace!("number '{}'", number_literal);
+    trace!("syntax_number: number literal '{}'", number_literal);
     Ok((it, OperandSource::DirectSource(Number::from(&number_literal, radix))))
 }
 
 pub fn parse(cmd: &str) -> Result<(OperandSource, Operator, OperandSource), String> {
-    trace!("parse");
+    trace!("parse: command '{}'", cmd);
     let (it_after_first_operand, left_operand_source) = match syntax_accessor(
         match ParsingIterator::from(&cmd) {
             Err(msg) => return Err(format!("Cannot create parser for command '{}': ", cmd) + msg),
@@ -241,7 +241,7 @@ pub fn parse(cmd: &str) -> Result<(OperandSource, Operator, OperandSource), Stri
         Ok((it, rop)) => (it, rop),
         Err(message) => return Err(message)
     };
-    trace!("parse {:?} {:?}", left_operand_source, right_operand_source);
+    trace!("parse: resulting operands {:?} {:?}", left_operand_source, right_operand_source);
     if it_after_second_operand.current() != None {
         return Err(format!("Could not parse all symbols in command, left '{}'", String::from_utf8_lossy(it_after_second_operand.rest())).to_owned())
     }

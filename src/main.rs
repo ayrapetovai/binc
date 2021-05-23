@@ -10,6 +10,7 @@ use rustyline::Editor;
 use syntax::parse;
 use operators::{HandlerResult};
 use crate::operators::OperationResult;
+use clap::{App, Arg};
 
 fn print_ui(number: &Number) {
     println!();
@@ -33,7 +34,22 @@ fn generate_executor(command: &str) -> Result<Box<Executor>, String> {
 
 fn main() {
     // https://docs.rs/clap/2.33.3/clap/
-    // stderrlog::new().module(module_path!()).verbosity(4).init().unwrap();
+    let matches = App::new("binc")
+        .arg(Arg::with_name("v")
+            .short("v")
+            .multiple(true)
+            .help("Sets the level of verbosity"))
+        .get_matches();
+
+    let verbosity_level = match matches.occurrences_of("v") {
+        0..=4 => matches.occurrences_of("v"),
+        _ => {
+            println!("Verbosity level can start from 0 to 4 inclusive.");
+            return;
+        }
+    } as usize;
+
+    stderrlog::new().module(module_path!()).verbosity(verbosity_level).init().unwrap();
 
     // `()` can be used when no completer is required
     let mut cli_editor = Editor::<()>::new();
@@ -46,7 +62,7 @@ fn main() {
         let input = cli_editor.readline("(binc) ");
         match input {
             Ok(commands) => {
-                trace!("commands: {}", commands);
+                trace!("main loop: got commands: '{}'", commands);
                 let command_list = commands.split(";").collect::<Vec<_>>();
                 for command in command_list {
                     if !command.is_empty() {

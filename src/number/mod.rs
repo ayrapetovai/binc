@@ -21,7 +21,6 @@ pub enum NumberType {
 #[derive(Debug)]
 pub struct Number {
     buffer: Vec<bool>,
-    max_size: usize,
     number_type: NumberType,
     is_signed: bool,
     carry: bool,
@@ -31,17 +30,16 @@ impl Number {
     pub fn new(number_type: NumberType, is_signed: bool, max_size: usize) -> Self {
         Self {
             buffer: vec![false; max_size],
-            max_size,
             number_type,
             is_signed,
             carry: false,
         }
     }
     pub fn from(number_literal: &str, radix: u32) -> Self {
+        trace!("Number::from: parsing literal '{}', radis {}", number_literal, radix);
         // TODO floating point, + and - notations
         let mut new_number = Self {
             buffer: vec![false; 1],
-            max_size: usize::MAX,
             number_type: if number_literal.contains(".") { NumberType::Float } else { NumberType::Integer },
             is_signed: if number_literal.starts_with("-") { true } else { false },
             carry: false,
@@ -60,27 +58,32 @@ impl Number {
                 panic!("Letter '{}' cannot be used for number notation in base {}", c, radix);
             }
         }
-        new_number.max_size = power_of_two(new_number.buffer.len());
-        let mut buf = vec![false; new_number.max_size];
+        trace!("Number::from: parsed buffer {:?}", new_number.buffer);
+        let mut buf = vec![false; power_of_two(new_number.buffer.len())];
         for i in 0..new_number.buffer.len() {
             buf[i] = new_number.buffer[i];
         }
         new_number.buffer = buf;
+        trace!("Number::from: reajusted buffer is {:?}", new_number.buffer);
         new_number
     }
 
     fn add_number(&mut self, additive: u32) {
+        trace!("add_number: additive is {}, number.buffer.len is {}", additive, self.buffer.len());
         let additive_length = 32usize - additive.leading_zeros() as usize;
         let mut i = 0;
         let mut additive_mask = 0x1u32;
         let mut carry = false;
-        while !(!carry && i >= additive_length) && i < self.max_size {
+        while !(!carry && i >= additive_length) {
             if i >= self.buffer.len() {
                 self.buffer.push(false);
             }
             let current_mul_bit = additive & additive_mask != 0;
+            trace!("add_number: adding bit {} of additive to ith bit of number {}", current_mul_bit,  self.buffer[i]);
             let new_carry = ((current_mul_bit ^ self.buffer[i]) & carry) | (current_mul_bit & self.buffer[i]);
+            trace!("add_number: new_carry {}", new_carry);
             self.buffer[i] = (current_mul_bit ^ self.buffer[i]) ^ carry;
+            trace!("add_number: new ith bit {}", self.buffer[i]);
             carry = new_carry;
             i += 1;
             additive_mask <<= 1;
@@ -96,16 +99,28 @@ impl Number {
     }
 
     // fixme make private
-    pub fn add_bools(&mut self, additive: &[bool]) {
+    fn add_bools(&mut self, additive: &[bool]) {
         let mut carry = false;
         if additive.len() > self.buffer.len() {
             self.buffer.reserve(additive.len() - self.buffer.len());
         }
         let mut i = 0;
-        while !(!carry && i >= additive.len()) && i < self.max_size {
+        while !(!carry && i >= additive.len()) {
             if i >= self.buffer.len() {
                 self.buffer.push(false);
             }
+            let additive_ith = if i >= additive.len() { false } else { additive[i] };
+            let new_carry = ((additive_ith ^ self.buffer[i]) && carry) || (additive_ith && self.buffer[i]);
+            self.buffer[i] = (additive_ith ^ self.buffer[i]) ^ carry;
+            carry = new_carry;
+            i += 1;
+        }
+    }
+
+    pub fn add_bits(&mut self, additive: &[bool]) {
+        let mut carry = false;
+        let mut i = 0;
+        while !(!carry && i >= additive.len()) && i < self.buffer.len() {
             let additive_ith = if i >= additive.len() { false } else { additive[i] };
             let new_carry = ((additive_ith ^ self.buffer[i]) && carry) || (additive_ith && self.buffer[i]);
             self.buffer[i] = (additive_ith ^ self.buffer[i]) ^ carry;
@@ -119,7 +134,6 @@ impl Number {
         for i in 0..other.buffer.len() {
             self.buffer.push(other.buffer[i]);
         }
-        self.max_size = other.max_size;
         self.number_type = other.number_type;
         self.is_signed = other.is_signed;
         self.carry = false;
@@ -170,12 +184,11 @@ impl Number {
     }
 
     pub fn max_size(&self) -> usize {
-        self.max_size
+        self.buffer.len()
     }
 
     pub fn signed_extend_to(&mut self, new_max_size: usize) {
-        self.max_size = new_max_size;
-        let mut buf = vec![false; self.max_size];
+        let mut buf = vec![false; new_max_size];
         for i in 0..self.buffer.len() {
             buf[i] = self.buffer[i];
         }
@@ -192,7 +205,7 @@ impl Number {
         if radix != 2 {
             todo!("implement radix base formatting");
         }
-        let mut res = String::with_capacity(self.max_size);
+        let mut res = String::with_capacity(self.buffer.len());
         for b in self.buffer.iter().take(self.buffer.len()).rev() {
             match b {
                 true => res.push('1'),
@@ -222,7 +235,7 @@ impl Display for Number {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         // write first index line
         write!(f, "   ")?;
-        let mut first_index_line = self.max_size as i32 - 1;
+        let mut first_index_line = self.buffer.len() as i32 - 1;
         while first_index_line >= 0 {
             write!(f, "{}", format!("{:<2}{:>7}  ", first_index_line, first_index_line - 7))?;
             first_index_line -= 8;
@@ -236,7 +249,7 @@ impl Display for Number {
             _ => 'u'
         };
         write!(f, "{}  ", sign_char)?;
-        for _ in self.buffer.len()..self.max_size {
+        for _ in self.buffer.len()..self.buffer.len() {
             write!(f, "{}", 0)?;
         }
         let mut count = 0;
@@ -257,7 +270,7 @@ impl Display for Number {
 
         // write second index line
         write!(f, "c {}", if self.carry { '1' } else { '0' })?;
-        let mut second_index_line = self.max_size as i32 - 4;
+        let mut second_index_line = self.buffer.len() as i32 - 4;
         while second_index_line >= 0 {
             //  60 59
             write!(f, "{}", format!("{:>4} {:<4}  ", second_index_line, second_index_line - 1))?;
@@ -282,13 +295,13 @@ fn add_test_add_by_one() {
 
     let mut n = Number::from("0", 10);
     n.add_number(u32::MAX);
-    // assert_eq!("11111111111111111111111111111111", n.to_string(2));
-    assert_eq!("11111111", n.to_string(2));
+    assert_eq!("11111111111111111111111111111111", n.to_string(2));
+    // assert_eq!("11111111", n.to_string(2));
 
     let mut n = Number::from("1", 10);
     n.add_number(u32::MAX);
-    // assert_eq!("00000000000000000000000000000000", n.to_string(2));
-    assert_eq!("00000000", n.to_string(2));
+    assert_eq!("100000000000000000000000000000000", n.to_string(2));
+    // assert_eq!("00000000", n.to_string(2));
 }
 
 #[test]

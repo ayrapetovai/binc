@@ -68,19 +68,19 @@ pub fn operator_assign(buffer: &mut Number, left: OperandSource, right: OperandS
 
 pub fn operator_sum(buffer: &mut Number, left: OperandSource, right: OperandSource) -> OperationResult {
     match right {
-        DirectSource(mut other_number) => {
-            other_number.signed_extend_to(buffer.max_size());
+        DirectSource(mut second_sum_operand) => {
+            second_sum_operand.signed_extend_to(buffer.max_size());
             match left {
                 DirectSource(_) => return Err("The left side of an expression cannot be represented by an immediate value".to_owned()), // will never be here
                 RangeSource(target_range) => {
-                    let bits = other_number.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
+                    let bits = second_sum_operand.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
                     trace!("operator_sum: get bits: {:?}", bits);
-                    buffer.add_bools(bits);
+                    buffer.add_bits(bits);
                 },
                 NamedAccessSource(_) => {},
                 Empty => return Err("no second operand!".to_owned())
             }
-        },
+        }
         RangeSource(source_range) => {
             match left {
                 DirectSource(_) => return Err("The left side of an expression cannot be represented by an immediate value".to_owned()), // will never be here
