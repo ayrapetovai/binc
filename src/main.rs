@@ -31,19 +31,19 @@ fn generate_executor(command: &str) -> Result<Box<Executor>, String> {
         Err(message) => Err(message)
     }
 }
-
+// TODO parse UTF-8
 fn main() {
     let matches = App::new("binc")
         .arg(Arg::with_name("v")
             .short("v")
             .multiple(true)
-            .help("Sets the level of verbosity"))
+            .help("Sets the level of verbosity. More 'v's, more verbosity. Four 'v' used for the most verbose output"))
         .get_matches();
 
     let verbosity_level = match matches.occurrences_of("v") {
         0..=4 => matches.occurrences_of("v"),
         _ => {
-            println!("Verbosity level can start from 0 to 4 inclusive.");
+            println!("Verbosity level must be 0 to 4 inclusive.");
             return;
         }
     } as usize;
@@ -52,9 +52,6 @@ fn main() {
 
     // `()` can be used when no completer is required
     let mut cli_editor = Editor::<()>::new();
-    // if rl.load_history("history.txt").is_err() {
-    //     trace!("No previous history.");
-    // }
     let mut main_buffer = Number::new(NumberType::Integer, false, 32);
     loop {
         print_ui(&main_buffer);
@@ -63,27 +60,30 @@ fn main() {
             Ok(commands) => {
                 trace!("main loop: got commands: '{}'", commands);
                 let command_list = commands.split(";").collect::<Vec<_>>();
-                for command in command_list {
-                    if !command.is_empty() {
-                        cli_editor.add_history_entry(command);
-                        match generate_executor(command) {
-                            Ok(executor) => {
-                                match executor(&mut main_buffer) {
-                                    Ok((handler_result, optional_message)) => {
-                                        if handler_result == HandlerResult::Historical {
-                                            // TODO add to undo/redo history
-                                        }
-                                        if let Some(message) = optional_message {
-                                            println!("{}", message)
-                                        }
-                                    }
-                                    Err(err_msg) => println!("operation error: {}", err_msg)
-                                }
-                            }
-                            Err(err_msg) => println!("parsing error: {}", err_msg)
+                for mut command in command_list {
+                    if command.is_empty() {
+                        match cli_editor.history().last() {
+                            Some(last_command) => command = last_command,
+                            None => continue
                         }
                     } else {
-                        trace!("empty command")
+                        cli_editor.add_history_entry(command);
+                    }
+                    match generate_executor(command) {
+                        Ok(executor) => {
+                            match executor(&mut main_buffer) {
+                                Ok((handler_result, optional_message)) => {
+                                    if handler_result == HandlerResult::Historical {
+                                        // TODO add to undo/redo history
+                                    }
+                                    if let Some(message) = optional_message {
+                                        println!("{}", message)
+                                    }
+                                }
+                                Err(err_msg) => println!("operation error: {}", err_msg)
+                            }
+                        }
+                        Err(err_msg) => println!("parsing error: {}", err_msg)
                     }
                 }
             },

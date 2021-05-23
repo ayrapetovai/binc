@@ -20,7 +20,7 @@ pub enum NumberType {
 
 #[derive(Debug)]
 pub struct Number {
-    buffer: Vec<bool>,
+    buffer: Vec<bool>, // FIXME make it Vec<u8>
     number_type: NumberType,
     is_signed: bool,
     carry: bool,
@@ -168,7 +168,7 @@ impl Number {
     }
 
     pub fn set_bits(&mut self, range: BitsIndexRange, source_bits: &[bool]) {
-        trace!("number.set_bits: {:?}", range);
+        trace!("Number::set_bits: {:?}, source {:?}", range, source_bits);
         let high_index = match range.0 {
             BitsIndex::IndexedBit(i) => i,
             BitsIndex::HighestBit => &self.buffer.len()  - 1,
@@ -183,10 +183,7 @@ impl Number {
         let mut source_index = 0;
         let mut target_index = low_index;
         while target_index <= high_index {
-            if target_index >= self.buffer.len() {
-                self.buffer.push(false);
-            }
-            if source_index < source_bits.len() {
+            if source_index < source_bits.len() && target_index < self.buffer.len() {
                 self.buffer[target_index] = source_bits[source_index];
                 source_index += 1;
                 target_index += 1;

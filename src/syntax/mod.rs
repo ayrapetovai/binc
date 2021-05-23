@@ -185,6 +185,7 @@ fn syntax_negative_number(it: ParsingIterator) -> Result<(ParsingIterator, Right
     }
 }
 
+// FIXME refactor parsing numbers
 fn syntax_rvalue(it: ParsingIterator) -> Result<(ParsingIterator, RightOperandSource), String> {
     trace!("syntax_rvalue: with current symbol '{:?}'", it.current());
     match it.current() {
