@@ -6,6 +6,7 @@ use crate::operators::operator_sum;
 use crate::operators::operator_unsigned_shift_left;
 use crate::operators::operator_bits_width;
 use log::{info, trace, warn};
+use std::iter::FromIterator;
 
 #[derive(Debug)]
 pub enum NamedAccess {
@@ -29,37 +30,33 @@ pub enum RightOperandSource {
     Empty,
 }
 
-pub struct ParsingIterator<'a> {
-    source: &'a [u8],
+pub struct ParsingIterator {
+    source: Vec<char>,
     offset: usize,
 }
 
-impl<'a> ParsingIterator<'a> {
-    pub fn from(source_string: &'a str) -> Result<Self, &str> {
-        let source = source_string.as_bytes();
-        if !source.is_ascii() {
-            Err("given string is not ascii")
-        } else {
-            // skip leading whitespaces
-            let mut offset = 0;
-            while offset < source.len() && (source[offset] as char).is_whitespace() {
-                offset += 1;
-            }
-            Ok(Self { source, offset })
+impl ParsingIterator {
+    pub fn from(source_string: &str) -> Result<Self, &str> {
+        let source: Vec<char> = source_string.chars().collect();
+        // skip leading whitespaces
+        let mut offset = 0;
+        while offset < source.len() && (source[offset]).is_whitespace() {
+            offset += 1;
         }
+        Ok(Self { source, offset })
     }
     pub fn current(&self) -> Option<char> {
         if self.offset < self.source.len() {
-            Some(self.source[self.offset] as char)
+            Some(self.source[self.offset])
         } else {
             None
         }
     }
     pub fn match_from_current(&self, sequence: &str) -> bool {
-        let bytes = sequence.as_bytes();
+        let bytes: Vec<char> = sequence.chars().collect();
         for i in 0..sequence.len() {
             if self.offset + i >= self.source.len() || self.source[self.offset + i] != bytes[i] &&
-                !(self.source[self.offset + i] as char).is_whitespace()
+                !(self.source[self.offset + i]).is_whitespace()
             {
                 return false
             }
@@ -70,7 +67,7 @@ impl<'a> ParsingIterator<'a> {
         if self.offset < self.source.len() {
             self.offset += 1;
         }
-        while self.offset < self.source.len() && (self.source[self.offset] as char).is_whitespace() {
+        while self.offset < self.source.len() && (self.source[self.offset]).is_whitespace() {
             self.offset += 1;
         }
         self.current()
@@ -79,7 +76,7 @@ impl<'a> ParsingIterator<'a> {
         let mut skip_counter = 0;
         while self.offset < self.source.len() && skip_counter < n {
             self.offset += 1;
-            if self.offset < self.source.len() && !(self.source[self.offset] as char).is_whitespace() {
+            if self.offset < self.source.len() && !(self.source[self.offset]).is_whitespace() {
                 skip_counter += 1;
             }
         }
@@ -88,7 +85,7 @@ impl<'a> ParsingIterator<'a> {
     pub fn rewind(self) -> Self {
         self.rewind_n(1)
     }
-    fn rest(&self) -> &[u8] {
+    fn rest(&self) -> &[char] {
         &self.source[self.offset..]
     }
 }
@@ -198,7 +195,7 @@ fn syntax_rvalue(it: ParsingIterator) -> Result<(ParsingIterator, RightOperandSo
             '1'..='9' => syntax_number(it, 10, false),
             '0' => syntax_radix_number(it.rewind(), false),
             '-' => syntax_negative_number(it.rewind()),
-            _ => Err(format!("number expected, but '{}' was found", String::from_utf8_lossy(it.rest())).to_owned())
+            _ => Err(format!("number expected, but '{}' was found", String::from_iter(it.rest())).to_owned())
         }
         None => Ok((it, RightOperandSource::Empty))
     }
@@ -272,13 +269,12 @@ pub fn parse(cmd: &str) -> Result<(LeftOperandSource, Operator, RightOperandSour
     };
     trace!("parse: resulting operands {:?} {:?}", left_operand_source, right_operand_source);
     if it_after_second_operand.current() != None {
-        return Err(format!("Could not parse all symbols in command, left '{}'", String::from_utf8_lossy(it_after_second_operand.rest())).to_owned())
+        return Err(format!("Could not parse all symbols in command, left '{}'", String::from_iter(it_after_second_operand.rest())).to_owned())
     }
     Ok((left_operand_source, operator_handler, right_operand_source))
 }
 
 #[test]
-#[should_panic]
 fn parsing_iterator_from_non_ascii() {
     ParsingIterator::from("これは変な文です").unwrap();
 }

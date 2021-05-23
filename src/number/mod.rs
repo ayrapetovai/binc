@@ -27,6 +27,7 @@ pub struct Number {
 }
 
 impl Number {
+    // TODO return Result<Self, String>
     pub fn new(number_type: NumberType, is_signed: bool, max_size: usize) -> Self {
         Self {
             buffer: vec![false; max_size],
@@ -35,6 +36,7 @@ impl Number {
             carry: false,
         }
     }
+    // TODO return Result<Self, String>
     pub fn from(number_literal: &str, radix: u32) -> Self {
         trace!("Number::from: parsing literal '{}', radix {}", number_literal, radix);
         let is_negative = number_literal.starts_with("-");

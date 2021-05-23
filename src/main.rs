@@ -31,7 +31,7 @@ fn generate_executor(command: &str) -> Result<Box<Executor>, String> {
         Err(message) => Err(message)
     }
 }
-// TODO parse UTF-8
+
 fn main() {
     let matches = App::new("binc")
         .arg(Arg::with_name("v")
