@@ -33,7 +33,6 @@ fn generate_executor(command: &str) -> Result<Box<Executor>, String> {
 }
 
 fn main() {
-    // https://docs.rs/clap/2.33.3/clap/
     let matches = App::new("binc")
         .arg(Arg::with_name("v")
             .short("v")

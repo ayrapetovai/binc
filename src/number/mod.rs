@@ -200,7 +200,26 @@ impl Number {
         }
         self.buffer = buf;
     }
-
+    pub fn convert(&mut self, number_type: NumberType, signed: bool, size: usize) {
+        self.number_type = number_type;
+        self.is_signed = signed;
+        let mut buf = vec![false; power_of_two(size)];
+        for i in 0..buf.len() {
+            if i < self.buffer.len() {
+                buf[i] = self.buffer[i];
+            }
+        }
+        self.buffer = buf;
+    }
+    pub fn to_usize(&self) -> usize {
+        let mut result = 0;
+        let mut mask = 1;
+        for bit in &self.buffer {
+            result = result | if *bit { mask } else { 0 };
+            mask <<= 1;
+        }
+        result
+    }
     fn to_string(&self, radix: u32) -> String {
         if radix != 2 {
             todo!("implement radix base formatting");
@@ -481,4 +500,16 @@ fn number_set_bits() {
     let mut n = Number::from("0", 16);
     n.set_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit), &[true, true]);
     assert_eq!(vec![true, true, false, false, false, false, false, false], n.buffer);
+}
+
+#[test]
+fn number_to_usize() {
+    let n = Number::from("0", 10);
+    assert_eq!(0, n.to_usize());
+
+    let n = Number::from("1", 10);
+    assert_eq!(1, n.to_usize());
+
+    let n = Number::from(&usize::MAX.to_string(), 10);
+    assert_eq!(usize::MAX, n.to_usize());
 }

@@ -1,5 +1,10 @@
 use crate::number::{Number, BitsIndexRange, BitsIndex};
-use crate::operators::{Operator, operator_show_help, operator_assign, operator_sum, operator_unsigned_shift_left};
+use crate::operators::Operator;
+use crate::operators::operator_show_help;
+use crate::operators::operator_assign;
+use crate::operators::operator_sum;
+use crate::operators::operator_unsigned_shift_left;
+use crate::operators::operator_bits_width;
 use log::{info, trace, warn};
 
 #[derive(Debug)]
@@ -154,6 +159,9 @@ fn syntax_accessor(it: ParsingIterator) -> Result<(ParsingIterator, Option<BitsI
 fn syntax_operator(it: ParsingIterator) -> (ParsingIterator, Option<Operator>) {
     if it.match_from_current("help") {
         return (it.rewind_n(4), Some(operator_show_help as Operator));
+    }
+    if it.match_from_current("int") {
+        return (it.rewind_n(3), Some(operator_bits_width as Operator))
     }
     if it.match_from_current("<<") {
         return (it.rewind_n(2), Some(operator_unsigned_shift_left as Operator));

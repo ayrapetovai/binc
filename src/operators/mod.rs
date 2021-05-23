@@ -1,5 +1,5 @@
 use crate::syntax::{LeftOperandSource, RightOperandSource};
-use crate::number::{Number, BitsIndexRange, BitsIndex};
+use crate::number::{Number, BitsIndexRange, BitsIndex, NumberType};
 use log::trace;
 
 pub type OperationResult = Result<(HandlerResult, Option<String>), String>;
@@ -86,4 +86,14 @@ pub fn operator_sum(buffer: &mut Number, left: LeftOperandSource, right: RightOp
 
 pub fn operator_unsigned_shift_left(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     Ok((Historical, Some("not implemented".to_owned())))
+}
+
+pub fn operator_bits_width(buffer: &mut Number, _: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+    match right {
+        RightOperandSource::DirectSource(number) => {
+            buffer.convert(NumberType::Integer, true, number.to_usize());
+            Ok((Historical, None))
+        }
+        _ => return Err("Bit width is necessary argument".to_owned())
+    }
 }
