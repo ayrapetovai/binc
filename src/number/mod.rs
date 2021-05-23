@@ -152,34 +152,24 @@ impl Number {
         self.carry = false;
     }
 
-    pub fn get_bits(&self, range: BitsIndexRange) -> &[bool] {
-        let high_order_bit_index = match range.0 {
+    fn resolve_bit_index(&self, bi: BitsIndex) -> usize {
+        match bi {
             BitsIndex::IndexedBit(i) => i,
             BitsIndex::HighestBit => &self.buffer.len()  - 1,
             BitsIndex::LowestBit => 0
+        }
+    }
 
-        };
-        let low_order_bit_index = match range.1 {
-            BitsIndex::IndexedBit(i) => i,
-            BitsIndex::HighestBit => &self.buffer.len() - 1,
-            BitsIndex::LowestBit => 0
-        };
+    pub fn get_bits(&self, range: BitsIndexRange) -> &[bool] {
+        let high_order_bit_index = self.resolve_bit_index(range.0);
+        let low_order_bit_index = self.resolve_bit_index(range.1);
         &self.buffer[low_order_bit_index..=high_order_bit_index]
     }
 
     pub fn set_bits(&mut self, range: BitsIndexRange, source_bits: &[bool]) {
         trace!("Number::set_bits: {:?}, source {:?}", range, source_bits);
-        let high_index = match range.0 {
-            BitsIndex::IndexedBit(i) => i,
-            BitsIndex::HighestBit => &self.buffer.len()  - 1,
-            BitsIndex::LowestBit => 0
-
-        };
-        let low_index = match range.1 {
-            BitsIndex::IndexedBit(i) => i,
-            BitsIndex::HighestBit => &self.buffer.len()  - 1,
-            BitsIndex::LowestBit => 0
-        };
+        let high_index = self.resolve_bit_index(range.0);
+        let low_index = self.resolve_bit_index(range.1);
         let mut source_index = 0;
         let mut target_index = low_index;
         while target_index <= high_index {

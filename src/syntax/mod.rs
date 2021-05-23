@@ -198,7 +198,7 @@ fn syntax_rvalue(it: ParsingIterator) -> Result<(ParsingIterator, RightOperandSo
             '1'..='9' => syntax_number(it, 10, false),
             '0' => syntax_radix_number(it.rewind(), false),
             '-' => syntax_negative_number(it.rewind()),
-            _ => Err("bad number syntax".to_owned())
+            _ => Err(format!("number expected, but '{}' was found", String::from_utf8_lossy(it.rest())).to_owned())
         }
         None => Ok((it, RightOperandSource::Empty))
     }
