@@ -42,7 +42,7 @@ impl Number {
     pub fn from(number_literal: &str, radix: u32) -> Result<Self, String> {
         trace!("Number::from: parsing literal '{}', radix {}", number_literal, radix);
         let is_negative = number_literal.starts_with("-");
-        // TODO floating point, + and - notations
+        // TODO floating, fixed
         let mut new_number = Self {
             buffer: vec![false; 1],
             number_type: if number_literal.contains(".") { NumberType::Float } else { NumberType::Integer },
@@ -58,7 +58,7 @@ impl Number {
                 '0'..='9' => c as u32 - '0' as u32,
                 'a'..='z' => c as u32 - 'a' as u32 + 10,
                 'A'..='Z' => c as u32 - 'A' as u32 + 10,
-                _ => panic!("letter {} cannot represent a digit", c)
+                _ => return Err(format!("letter {} cannot represent a digit", c).to_owned())
             };
             if n < radix {
                 new_number.mul_number(radix);
