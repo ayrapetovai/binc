@@ -27,17 +27,19 @@ pub struct Number {
 }
 
 impl Number {
-    // TODO return Result<Self, String>
-    pub fn new(number_type: NumberType, is_signed: bool, max_size: usize) -> Self {
-        Self {
-            buffer: vec![false; max_size],
-            number_type,
-            is_signed,
-            carry: false,
+    pub fn new(number_type: NumberType, is_signed: bool, max_size: usize) -> Result<Self, String> {
+        match next_power_of_two_rounded_up(max_size) {
+            Ok(size) =>
+                Ok(Self {
+                    buffer: vec![false; size],
+                    number_type,
+                    is_signed,
+                    carry: false,
+                }),
+            Err(message) => Err(message)
         }
     }
-    // TODO return Result<Self, String>
-    pub fn from(number_literal: &str, radix: u32) -> Self {
+    pub fn from(number_literal: &str, radix: u32) -> Result<Self, String> {
         trace!("Number::from: parsing literal '{}', radix {}", number_literal, radix);
         let is_negative = number_literal.starts_with("-");
         // TODO floating point, + and - notations
@@ -62,11 +64,15 @@ impl Number {
                 new_number.mul_number(radix);
                 new_number.add_number(n, usize::MAX);
             } else {
-                panic!("Letter '{}' cannot be used for number notation in base {}", c, radix);
+                return Err(format!("Letter '{}' cannot be used for number notation in base {}", c, radix).to_owned());
             }
         }
         trace!("Number::from: parsed buffer {:?}", new_number.buffer);
-        let mut buf = vec![false; next_power_of_two_rounded_up(new_number.buffer.len())];
+        let max_size = match next_power_of_two_rounded_up(new_number.buffer.len()) {
+            Ok(s) => s,
+            Err(m) => return Err(m)
+        };
+        let mut buf = vec![false; max_size];
         for i in 0..new_number.buffer.len() {
             buf[i] = new_number.buffer[i];
         }
@@ -79,7 +85,7 @@ impl Number {
             new_number.add_number(1, new_number.buffer.len());
         }
         new_number.carry = false;
-        new_number
+        Ok(new_number)
     }
 
     fn add_number(&mut self, additive: u32, max_size: usize) {
@@ -111,7 +117,6 @@ impl Number {
         }
     }
 
-    // fixme make private
     fn add_bools(&mut self, additive: &[bool]) {
         self.carry = false;
         let mut carry = false;
@@ -189,6 +194,7 @@ impl Number {
         self.buffer.len()
     }
 
+    // TODO check weather the number is signed inside method, do not let caller to decide
     pub fn signed_extend_to(&mut self, new_max_size: usize) {
         if self.buffer.len() < new_max_size {
             let mut buf = vec![false; new_max_size];
@@ -207,7 +213,7 @@ impl Number {
     pub fn convert(&mut self, number_type: NumberType, signed: bool, size: usize) {
         self.number_type = number_type;
         self.is_signed = signed;
-        let mut buf = vec![false; next_power_of_two_rounded_up(size)];
+        let mut buf = vec![false; next_power_of_two_rounded_up(size).unwrap()];
         for i in 0..buf.len() {
             if i < self.buffer.len() {
                 buf[i] = self.buffer[i];
@@ -252,13 +258,13 @@ const NUMBER_OF_DEADLY_SINS: i32 = 7;
 /// ##Chapter 3. Power-of-2 Boundaries
 /// 3.1 Rounding Up/Down to a Multiple of a Known Power of 2
 /// 3.2 Rounding Up/Down to the Next Power of 2
-fn next_power_of_two_rounded_up(length: usize) -> usize {
+fn next_power_of_two_rounded_up(length: usize) -> Result<usize, String> {
     if 0 < length && length < 513 {
         let abra = (length as i32 - NUMBER_OF_BLACK_PRESIDENTS_OF_US).leading_zeros() as i32;
         let cadabra = (0x80_00_00_00u32 >> (abra - NUMBER_OF_BLACK_PRESIDENTS_OF_US)) as i32;
-        ((cadabra + NUMBER_OF_DEADLY_SINS) & -NUMBER_OF_CONVEX_DELTAHEDRON) as usize
+        Ok(((cadabra + NUMBER_OF_DEADLY_SINS) & -NUMBER_OF_CONVEX_DELTAHEDRON) as usize)
     } else {
-        panic!("error, length too big; length cannot be zero, given {}", length)
+        Err(format!("error, length too big; length cannot be zero, given {}", length).to_owned())
     }
 }
 
@@ -314,7 +320,7 @@ impl Display for Number {
 
 #[test]
 fn add_test_add_by_one() {
-    let mut n = Number::from("0", 10);
+    let mut n = Number::from("0", 10).unwrap();
     assert_eq!("00000000", n.to_string(2));
     n.add_number(1, usize::MAX);
     assert_eq!("00000001", n.to_string(2));
@@ -325,24 +331,24 @@ fn add_test_add_by_one() {
     n.add_number(1, usize::MAX);
     assert_eq!("00000100", n.to_string(2));
 
-    let mut n = Number::from("0", 10);
+    let mut n = Number::from("0", 10).unwrap();
     n.add_number(u32::MAX, usize::MAX);
     assert_eq!("11111111111111111111111111111111", n.to_string(2));
     // assert_eq!("11111111", n.to_string(2));
 
-    let mut n = Number::from("1", 10);
+    let mut n = Number::from("1", 10).unwrap();
     n.add_number(u32::MAX, usize::MAX);
     assert_eq!("100000000000000000000000000000000", n.to_string(2));
     // assert_eq!("00000000", n.to_string(2));
 
-    let mut n = Number::from("1", 10);
+    let mut n = Number::from("1", 10).unwrap();
     n.add_number(u32::MAX, n.max_size());
     assert_eq!("00000000", n.to_string(2));
 }
 
 #[test]
 fn add_test_add_three() {
-    let mut n = Number::from("0", 10);
+    let mut n = Number::from("0", 10).unwrap();
     assert_eq!("00000000", n.to_string(2));
     n.add_number(3, n.max_size());
     assert_eq!("00000011", n.to_string(2));
@@ -350,7 +356,7 @@ fn add_test_add_three() {
 
 #[test]
 fn add_bools_test() {
-    let mut n = Number::from("0", 10);
+    let mut n = Number::from("0", 10).unwrap();
     n.add_bools(&[true]);
     assert_eq!("00000001", n.to_string(2));
     n.add_bools(&[true]);
@@ -360,159 +366,159 @@ fn add_bools_test() {
     n.add_bools(&[true]);
     assert_eq!("00000100", n.to_string(2));
 
-    let mut n = Number::from("15", 10);
+    let mut n = Number::from("15", 10).unwrap();
     n.add_bools(&[true]);
     assert_eq!("00010000", n.to_string(2));
 
     n.add_bools(&[true, false]);
     assert_eq!("00010001", n.to_string(2));
 
-    let mut n = Number::from("0", 10);
+    let mut n = Number::from("0", 10).unwrap();
     n.add_bools(&[true, true]);
     assert_eq!("00000011", n.to_string(2));
 
-    let mut n = Number::from("1", 10);
+    let mut n = Number::from("1", 10).unwrap();
     n.add_bools(&[false, true]);
     assert_eq!("00000011", n.to_string(2));
 }
 
 #[test]
 fn add_vecs_test_add_all_false() {
-    let mut n = Number::from("0", 10);
+    let mut n = Number::from("0", 10).unwrap();
     assert_eq!("00000000", n.to_string(2));
     n.add_number(0, usize::MAX);
     assert_eq!("00000000", n.to_string(2));
 
-    let mut n = Number::from("0", 10);
+    let mut n = Number::from("0", 10).unwrap();
     n.add_number(1, usize::MAX);
     assert_eq!("00000001", n.to_string(2));
 
-    let mut n = Number::from("0", 10);
+    let mut n = Number::from("0", 10).unwrap();
     n.add_number(10, usize::MAX);
     assert_eq!("00001010", n.to_string(2));
 
-    let mut n = Number::from("1", 10);
+    let mut n = Number::from("1", 10).unwrap();
     n.add_number(10, usize::MAX);
     assert_eq!("00001011", n.to_string(2));
 }
 
 #[test]
 fn mul_number_test() {
-    let mut n = Number::from("0", 10);
+    let mut n = Number::from("0", 10).unwrap();
     n.mul_number(142);
     assert_eq!("00000000", n.to_string(2));
 
-    let mut n = Number::from("10", 10);
+    let mut n = Number::from("10", 10).unwrap();
     n.mul_number(1);
     assert_eq!("00001010", n.to_string(2));
 
-    let mut n = Number::from("1", 10);
+    let mut n = Number::from("1", 10).unwrap();
     assert_eq!("00000001", n.to_string(2));
     n.mul_number(10);
     assert_eq!("00001010", n.to_string(2));
 
-    let mut n = Number::from("1", 10);
+    let mut n = Number::from("1", 10).unwrap();
     n.mul_number(16);
     assert_eq!("00010000", n.to_string(2));
 }
 
 #[test]
 fn from_negative_str_r10() {
-    let n = Number::from("-0", 10);
+    let n = Number::from("-0", 10).unwrap();
     assert_eq!(0, n.to_usize());
 
-    let n = Number::from("-1", 10);
+    let n = Number::from("-1", 10).unwrap();
     assert_eq!("11111111", n.to_string(2));
 }
 
 #[test]
 fn from_str_r10() {
-    let n = Number::from("0", 10);
+    let n = Number::from("0", 10).unwrap();
     assert_eq!("00000000", n.to_string(2));
 
-    let n = Number::from("1", 10);
+    let n = Number::from("1", 10).unwrap();
     assert_eq!("00000001", n.to_string(2));
 
-    let n = Number::from("2", 10);
+    let n = Number::from("2", 10).unwrap();
     assert_eq!("00000010", n.to_string(2));
 
-    let n = Number::from("9", 10);
+    let n = Number::from("9", 10).unwrap();
     assert_eq!("00001001", n.to_string(2));
 
-    let n = Number::from("10", 10);
+    let n = Number::from("10", 10).unwrap();
     assert_eq!("00001010", n.to_string(2));
 
-    let n = Number::from("15", 10);
+    let n = Number::from("15", 10).unwrap();
     assert_eq!("00001111", n.to_string(2));
 
-    let n = Number::from("16", 10);
+    let n = Number::from("16", 10).unwrap();
     assert_eq!("00010000", n.to_string(2));
 
-    let n = Number::from(&*u8::MAX.to_string(), 10);
+    let n = Number::from(&*u8::MAX.to_string(), 10).unwrap();
     assert_eq!("11111111", n.to_string(2));
 
-    let n = Number::from(&*u32::MAX.to_string(), 10);
+    let n = Number::from(&*u32::MAX.to_string(), 10).unwrap();
     assert_eq!("11111111111111111111111111111111", n.to_string(2));
 
-    let n = Number::from("2147483648", 10);
+    let n = Number::from("2147483648", 10).unwrap();
     assert_eq!("10000000000000000000000000000000", n.to_string(2));
 }
 
 #[test]
 fn from_str_r2() {
-    let n = Number::from("10000000000000000000000000000000", 2);
+    let n = Number::from("10000000000000000000000000000000", 2).unwrap();
     assert_eq!("10000000000000000000000000000000", n.to_string(2));
 
-    let n = Number::from("0", 2);
+    let n = Number::from("0", 2).unwrap();
     assert_eq!("00000000", n.to_string(2));
 
-    let n = Number::from("1", 2);
+    let n = Number::from("1", 2).unwrap();
     assert_eq!("00000001", n.to_string(2));
 
-    let n = Number::from("10", 2);
+    let n = Number::from("10", 2).unwrap();
     assert_eq!("00000010", n.to_string(2));
 
-    let n = Number::from("1010", 2);
+    let n = Number::from("1010", 2).unwrap();
     assert_eq!("00001010", n.to_string(2));
 
-    let n = Number::from("1111", 2);
+    let n = Number::from("1111", 2).unwrap();
     assert_eq!("00001111", n.to_string(2));
 
-    let n = Number::from("11111", 2);
+    let n = Number::from("11111", 2).unwrap();
     assert_eq!("00011111", n.to_string(2));
 
-    let n = Number::from("1111111111111111111111111111111111111111", 2);
+    let n = Number::from("1111111111111111111111111111111111111111", 2).unwrap();
     assert_eq!("0000000000000000000000001111111111111111111111111111111111111111", n.to_string(2));
 }
 
 #[test]
 fn from_str_r8() {
-    let n = Number::from("1111", 8);
+    let n = Number::from("1111", 8).unwrap();
     assert_eq!("0000001001001001", n.to_string(2));
 }
 
 #[test]
 fn from_str_r16() {
-    let n = Number::from("F", 16);
+    let n = Number::from("F", 16).unwrap();
     assert_eq!("00001111", n.to_string(2));
 
-    let n = Number::from("10", 16);
+    let n = Number::from("10", 16).unwrap();
     assert_eq!("00010000", n.to_string(2));
 
-    let n = Number::from("1F", 16);
+    let n = Number::from("1F", 16).unwrap();
     assert_eq!("00011111", n.to_string(2));
 
-    let n = Number::from("AF", 16);
+    let n = Number::from("AF", 16).unwrap();
     assert_eq!("10101111", n.to_string(2));
 }
 
 #[test]
 fn number_get_bits() {
-    let n = Number::from("F", 16);
+    let n = Number::from("F", 16).unwrap();
     let bits = n.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
     assert_eq!([true, true, true, true, false, false, false, false], bits);
 
-    let n = Number::from("1E", 16);
+    let n = Number::from("1E", 16).unwrap();
     let bits = n.get_bits(BitsIndexRange(BitsIndex::IndexedBit(3), BitsIndex::IndexedBit(0)));
     assert_eq!([false, true, true, true], bits);
     let bits = n.get_bits(BitsIndexRange(BitsIndex::IndexedBit(4), BitsIndex::IndexedBit(1)));
@@ -523,50 +529,50 @@ fn number_get_bits() {
 
 #[test]
 fn number_set_bits() {
-    let mut n = Number::from("0", 16);
+    let mut n = Number::from("0", 16).unwrap();
     n.set_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit), &[true, true]);
     assert_eq!(vec![true, true, false, false, false, false, false, false], n.buffer);
 }
 
 #[test]
 fn number_to_usize() {
-    let n = Number::from("0", 10);
+    let n = Number::from("0", 10).unwrap();
     assert_eq!(0, n.to_usize());
 
-    let n = Number::from("1", 10);
+    let n = Number::from("1", 10).unwrap();
     assert_eq!(1, n.to_usize());
 
-    let n = Number::from(&usize::MAX.to_string(), 10);
+    let n = Number::from(&usize::MAX.to_string(), 10).unwrap();
     assert_eq!(usize::MAX, n.to_usize());
 }
 
 #[test]
 fn number_flip_all() {
-    let mut n = Number::from("1", 10);
+    let mut n = Number::from("1", 10).unwrap();
     n.flip_all();
     assert_eq!("11111110", n.to_string(2));
 
-    let mut n = Number::from(&u8::MAX.to_string(), 10);
+    let mut n = Number::from(&u8::MAX.to_string(), 10).unwrap();
     n.flip_all();
     assert_eq!("00000000", n.to_string(2));
 }
 
 #[test]
 fn rounding_up_to_the_next_power_of_two() {
-    assert_eq!(8, next_power_of_two_rounded_up(1));
-    assert_eq!(8, next_power_of_two_rounded_up(2));
-    assert_eq!(8, next_power_of_two_rounded_up(7));
-    assert_eq!(8, next_power_of_two_rounded_up(8));
-    assert_eq!(16, next_power_of_two_rounded_up(9));
-    assert_eq!(16, next_power_of_two_rounded_up(16));
-    assert_eq!(32, next_power_of_two_rounded_up(17));
-    assert_eq!(32, next_power_of_two_rounded_up(32));
-    assert_eq!(64, next_power_of_two_rounded_up(33));
-    assert_eq!(64, next_power_of_two_rounded_up(64));
-    assert_eq!(128, next_power_of_two_rounded_up(65));
-    assert_eq!(128, next_power_of_two_rounded_up(128));
-    assert_eq!(256, next_power_of_two_rounded_up(129));
-    assert_eq!(256, next_power_of_two_rounded_up(256));
-    assert_eq!(512, next_power_of_two_rounded_up(257));
-    assert_eq!(512, next_power_of_two_rounded_up(512));
+    assert_eq!(8, next_power_of_two_rounded_up(1).unwrap());
+    assert_eq!(8, next_power_of_two_rounded_up(2).unwrap());
+    assert_eq!(8, next_power_of_two_rounded_up(7).unwrap());
+    assert_eq!(8, next_power_of_two_rounded_up(8).unwrap());
+    assert_eq!(16, next_power_of_two_rounded_up(9).unwrap());
+    assert_eq!(16, next_power_of_two_rounded_up(16).unwrap());
+    assert_eq!(32, next_power_of_two_rounded_up(17).unwrap());
+    assert_eq!(32, next_power_of_two_rounded_up(32).unwrap());
+    assert_eq!(64, next_power_of_two_rounded_up(33).unwrap());
+    assert_eq!(64, next_power_of_two_rounded_up(64).unwrap());
+    assert_eq!(128, next_power_of_two_rounded_up(65).unwrap());
+    assert_eq!(128, next_power_of_two_rounded_up(128).unwrap());
+    assert_eq!(256, next_power_of_two_rounded_up(129).unwrap());
+    assert_eq!(256, next_power_of_two_rounded_up(256).unwrap());
+    assert_eq!(512, next_power_of_two_rounded_up(257).unwrap());
+    assert_eq!(512, next_power_of_two_rounded_up(512).unwrap());
 }

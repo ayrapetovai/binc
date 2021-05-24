@@ -225,7 +225,7 @@ fn syntax_radix_number(it: ParsingIterator, is_negative: bool) -> Result<(Parsin
                 }
             _ => Err(format!("bad radix letter '{}'", c))
         },
-        None => Ok((it, RightOperandSource::DirectSource(Number::from("0", 10))))
+        None => Ok((it, RightOperandSource::DirectSource(Number::from("0", 10).unwrap())))
     }
 }
 
@@ -244,7 +244,10 @@ fn syntax_number(mut it: ParsingIterator, radix: u32, is_negative: bool) -> Resu
         it.next();
     }
     trace!("syntax_number: number literal '{}'", number_literal);
-    Ok((it, RightOperandSource::DirectSource(Number::from(&number_literal, radix))))
+    match Number::from(&number_literal, radix) {
+        Ok(number) => Ok((it, RightOperandSource::DirectSource(number))),
+        Err(message) => Err(message)
+    }
 }
 
 pub fn parse(cmd: &str) -> Result<(LeftOperandSource, Operator, RightOperandSource), String> {

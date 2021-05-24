@@ -52,7 +52,7 @@ fn main() {
 
     // `()` can be used when no completer is required
     let mut cli_editor = Editor::<()>::new();
-    let mut main_buffer = Number::new(NumberType::Integer, false, 32);
+    let mut main_buffer = Number::new(NumberType::Integer, false, 32).unwrap();
     loop {
         print_ui(&main_buffer);
         let input = cli_editor.readline("(binc) ");
