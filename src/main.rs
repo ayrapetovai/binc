@@ -1,3 +1,4 @@
+//#![deny(warnings, missing_docs)]
 mod syntax;
 mod number;
 mod operators;
@@ -13,7 +14,14 @@ use crate::operators::OperationResult;
 use clap::{App, Arg};
 
 fn print_ui(number: &Number) {
+    let line = format!(
+        "{3:>0$} {4:>1$} {5:>2$}",
+        number.number_of_digits_in_radix(16) + 2, number.number_of_digits_in_radix(10) + 2, number.number_of_digits_in_radix(8) + 2,
+        number.to_string(16), number.to_string(10), number.to_string(8)
+    );
+
     println!();
+    println!("{}", line);
     println!("{}", number);
 }
 
@@ -102,3 +110,9 @@ fn main() {
         }
     }
 }
+
+// #[test]
+// fn foo() {
+//     let m: usize = (bits_number as f32 * 2f32.log2() / (target_radix as f32).log2() + 1f32) as usize;
+//     println!("{}", m);
+// }
