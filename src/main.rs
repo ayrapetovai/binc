@@ -13,6 +13,7 @@ use operators::{HandlerResult};
 use crate::operators::OperationResult;
 use clap::{App, Arg};
 
+// TODO string builder with formatting
 fn print_ui(number: &Number) {
     let line = format!(
         "{3:>0$} {4:>1$} {5:>2$}",
@@ -110,9 +111,3 @@ fn main() {
         }
     }
 }
-
-// #[test]
-// fn foo() {
-//     let m: usize = (bits_number as f32 * 2f32.log2() / (target_radix as f32).log2() + 1f32) as usize;
-//     println!("{}", m);
-// }

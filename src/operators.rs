@@ -36,7 +36,7 @@ pub fn operator_assign(buffer: &mut Number, left: LeftOperandSource, right: Righ
             match left {
                 LeftOperandSource::RangeSource(target_range) => {
                     let bits = other_number.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
-                    trace!("operator_assign: get bits: {:?}", bits);
+                    trace!("operator_assign: get bits: {:b}", bits);
                     buffer.set_bits(target_range, bits);
                 },
                 LeftOperandSource::NamedAccessSource(_) => {}
@@ -46,7 +46,7 @@ pub fn operator_assign(buffer: &mut Number, left: LeftOperandSource, right: Righ
             match left {
                 LeftOperandSource::RangeSource(target_range) => {
                     let bits = buffer.get_bits(source_range).to_owned();
-                    buffer.set_bits(target_range, &bits[..]);
+                    buffer.set_bits(target_range, bits);
                 },
                 LeftOperandSource::NamedAccessSource(_) => {},
             }

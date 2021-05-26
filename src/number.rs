@@ -1,5 +1,6 @@
 use std::fmt::{Display, Formatter};
 use log::trace;
+use std::mem::size_of;
 
 #[derive(Debug, Copy, Clone)]
 pub enum BitsIndex {
@@ -18,20 +19,24 @@ pub enum NumberType {
     Fixed,
 }
 
+type BufferType = u128;
+
 #[derive(Debug)]
 pub struct Number {
-    buffer: Vec<bool>, // FIXME make it Vec<u8>
+    buffer: BufferType,
+    effective_bits: usize,
     number_type: NumberType,
     is_signed: bool,
     carry: bool,
 }
 
 impl Number {
-    pub fn new(number_type: NumberType, is_signed: bool, max_size: usize) -> Result<Self, String> {
-        match next_power_of_two_rounded_up(max_size) {
+    pub fn new(number_type: NumberType, is_signed: bool, size: usize) -> Result<Self, String> {
+        match next_power_of_two_rounded_up(size) {
             Ok(size) =>
                 Ok(Self {
-                    buffer: vec![false; size],
+                    buffer: 0u128,
+                    effective_bits: size,
                     number_type,
                     is_signed,
                     carry: false,
@@ -43,16 +48,11 @@ impl Number {
         trace!("Number::from: parsing literal '{}', radix {}", number_literal, radix);
         let is_negative = number_literal.starts_with("-");
         // TODO floating, fixed
-        let mut new_number = Self {
-            buffer: vec![false; 1],
-            number_type: if number_literal.contains(".") { NumberType::Float } else { NumberType::Integer },
-            is_signed: is_negative,
-            carry: false,
-        };
         let mut it = number_literal.chars();
         if is_negative {
             it.next();
         }
+        let mut buffer = 0u128;
         while let Some(c) = it.next() {
             let n = match c {
                 '0'..='9' => c as u32 - '0' as u32,
@@ -61,99 +61,43 @@ impl Number {
                 _ => return Err(format!("letter {} cannot represent a digit", c).to_owned())
             };
             if n < radix {
-                new_number.mul_number(radix);
-                new_number.add_number(n, usize::MAX);
+                buffer *= radix as u128;
+                buffer += n as u128;
             } else {
                 return Err(format!("Letter '{}' cannot be used for number notation in base {}", c, radix).to_owned());
             }
         }
-        trace!("Number::from: parsed buffer {:?}", new_number.buffer);
-        let max_size = match next_power_of_two_rounded_up(new_number.buffer.len()) {
+        trace!("Number::from: parsed buffer 0b{:b}", buffer);
+
+        let buffer_length = size_of::<BufferType>() * 8;
+        let length_in_bits = match next_power_of_two_rounded_up(buffer_length - buffer.leading_zeros() as usize) {
             Ok(s) => s,
             Err(m) => return Err(m)
         };
-        let mut buf = vec![false; max_size];
-        for i in 0..new_number.buffer.len() {
-            buf[i] = new_number.buffer[i];
+        if is_negative && buffer != 0 {
+            trace!("Number::from: negate {}", buffer);
+            buffer = !buffer;
+            buffer += 1;
         }
-        new_number.buffer = buf;
-        trace!("Number::from: reajusted buffer is {:?}", new_number.buffer);
-
-        if is_negative {
-            trace!("Number::from: negate");
-            new_number.flip_all();
-            new_number.add_number(1, new_number.buffer.len());
-        }
-        new_number.carry = false;
-        Ok(new_number)
-    }
-
-    fn add_number(&mut self, additive: u32, max_size: usize) {
-        trace!("add_number: additive is {}, number.buffer.len is {}", additive, self.buffer.len());
-        let additive_length = 32usize - additive.leading_zeros() as usize;
-        let mut i = 0;
-        let mut additive_mask = 0x1u32;
-        self.carry = false;
-        while !(!self.carry && i >= additive_length) && i < max_size {
-            if i >= self.buffer.len() {
-                self.buffer.push(false);
+        Ok(
+            Self {
+                buffer: buffer & mask_n_ones_from_right(length_in_bits as u32),
+                effective_bits: length_in_bits,
+                number_type: if number_literal.contains(".") { NumberType::Float } else { NumberType::Integer },
+                is_signed: is_negative,
+                carry: false,
             }
-            let current_mul_bit = additive & additive_mask != 0;
-            trace!("add_number: adding bit {} of additive to ith bit of number {}", current_mul_bit,  self.buffer[i]);
-            let new_carry = ((current_mul_bit ^ self.buffer[i]) & self.carry) | (current_mul_bit & self.buffer[i]);
-            trace!("add_number: new_carry {}", new_carry);
-            self.buffer[i] = (current_mul_bit ^ self.buffer[i]) ^ self.carry;
-            trace!("add_number: new ith bit {}", self.buffer[i]);
-            self.carry = new_carry;
-            i += 1;
-            additive_mask <<= 1;
-        }
+        )
     }
 
-    fn mul_number(&mut self, multiplier: u32) {
-        let additive = self.buffer.clone();
-        for _ in 1..multiplier {
-            self.add_bools(&additive[..]);
-        }
-    }
-
-    fn add_bools(&mut self, additive: &[bool]) {
-        self.carry = false;
-        let mut carry = false;
-        if additive.len() > self.buffer.len() {
-            self.buffer.reserve(additive.len() - self.buffer.len());
-        }
-        let mut i = 0;
-        while !(!carry && i >= additive.len()) {
-            if i >= self.buffer.len() {
-                self.buffer.push(false);
-            }
-            let additive_ith = if i >= additive.len() { false } else { additive[i] };
-            let new_carry = ((additive_ith ^ self.buffer[i]) && carry) || (additive_ith && self.buffer[i]);
-            self.buffer[i] = (additive_ith ^ self.buffer[i]) ^ carry;
-            carry = new_carry;
-            i += 1;
-        }
-        self.carry = carry;
-    }
-
-    pub fn add_bits(&mut self, additive: &[bool]) {
-        self.carry = false;
-        let mut i = 0;
-        while !(!self.carry && i >= additive.len()) && i < self.buffer.len() {
-            let additive_ith = if i >= additive.len() { false } else { additive[i] };
-            let new_carry = ((additive_ith ^ self.buffer[i]) && self.carry) || (additive_ith && self.buffer[i]);
-            self.buffer[i] = (additive_ith ^ self.buffer[i]) ^ self.carry;
-            self.carry = new_carry;
-            i += 1;
-        }
+    pub fn add_bits(&mut self, additive: u128) {
+        self.buffer += additive;
+        self.carry = self.buffer & (1 << self.effective_bits) != 0;
+        self.buffer = self.buffer & mask_n_ones_from_right(self.effective_bits as u32);
     }
 
     pub fn assign_value(&mut self, other: &Number) {
-        self.buffer = Vec::with_capacity(other.buffer.len());
-        for i in 0..other.buffer.len() {
-            self.buffer.push(other.buffer[i]);
-        }
+        self.buffer = other.buffer;
         self.number_type = other.number_type;
         self.is_signed = other.is_signed;
         self.carry = false;
@@ -162,99 +106,73 @@ impl Number {
     fn resolve_bit_index(&self, bi: BitsIndex) -> usize {
         match bi {
             BitsIndex::IndexedBit(i) => i,
-            BitsIndex::HighestBit => &self.buffer.len()  - 1,
+            BitsIndex::HighestBit => self.effective_bits - 1,
             BitsIndex::LowestBit => 0
         }
     }
 
-    pub fn get_bits(&self, range: BitsIndexRange) -> &[bool] {
+    pub fn get_bits(&self, range: BitsIndexRange) -> u128 {
         let high_order_bit_index = self.resolve_bit_index(range.0);
         let low_order_bit_index = self.resolve_bit_index(range.1);
-        &self.buffer[low_order_bit_index..=high_order_bit_index]
+        (self.buffer & mask_from_bit_to_bit(high_order_bit_index, low_order_bit_index)) >> low_order_bit_index
     }
 
-    pub fn set_bits(&mut self, range: BitsIndexRange, source_bits: &[bool]) {
-        trace!("Number::set_bits: {:?}, source {:?}", range, source_bits);
+    pub fn set_bits(&mut self, range: BitsIndexRange, source_bits: u128) {
+        trace!("Number::set_bits: range {:?}, source {:b}", range, source_bits);
         let high_index = self.resolve_bit_index(range.0);
         let low_index = self.resolve_bit_index(range.1);
-        let mut source_index = 0;
-        let mut target_index = low_index;
-        while target_index <= high_index {
-            if source_index < source_bits.len() && target_index < self.buffer.len() {
-                self.buffer[target_index] = source_bits[source_index];
-                source_index += 1;
-                target_index += 1;
-            } else {
-                break;
-            }
-        }
+        self.buffer = (self.buffer & !mask_from_bit_to_bit(high_index, low_index)) | ((source_bits & mask_n_ones_from_right((high_index - low_index + 1) as u32)) << low_index)
     }
 
     pub fn max_size(&self) -> usize {
-        self.buffer.len()
+        self.effective_bits as usize
     }
 
     // TODO check weather the number is signed inside method, do not let caller to decide
     pub fn signed_extend_to(&mut self, new_max_size: usize) {
-        if self.buffer.len() < new_max_size {
-            let mut buf = vec![false; new_max_size];
-            for i in 0..self.buffer.len() {
-                buf[i] = self.buffer[i];
-            }
-            let last_bit = *self.buffer.last().unwrap();
-            if self.is_signed && self.buffer.len() < buf.len() {
-                for i in self.buffer.len()..buf.len() {
-                    buf[i] = last_bit;
-                }
-            }
-            self.buffer = buf;
+        // if this is signed and negative
+        if self.is_signed && self.buffer & mask_nth_bit(self.effective_bits - 1) != 0 {
+            self.buffer = self.buffer | (mask_n_ones_from_right(self.buffer.leading_zeros()) << (size_of::<BufferType>()*8 - self.buffer.leading_zeros() as usize));
         }
+        self.effective_bits = new_max_size;
     }
     pub fn convert(&mut self, number_type: NumberType, signed: bool, size: usize) {
         self.number_type = number_type;
         self.is_signed = signed;
-        let mut buf = vec![false; next_power_of_two_rounded_up(size).unwrap()];
-        for i in 0..buf.len() {
-            if i < self.buffer.len() {
-                buf[i] = self.buffer[i];
-            }
-        }
-        self.buffer = buf;
+        self.effective_bits = size;
+        self.buffer = self.buffer & mask_n_ones_from_right(size as u32);
     }
     pub fn to_usize(&self) -> usize {
-        let mut result = 0;
-        let mut mask = 1;
-        for bit in &self.buffer {
-            result = result | if *bit { mask } else { 0 };
-            mask <<= 1;
-        }
-        result
+        self.buffer as usize
     }
     pub fn flip_all(&mut self) {
-        for b in &mut self.buffer {
-            *b = !*b;
-        }
+        self.buffer = !self.buffer;
+        self.buffer = self.buffer & mask_n_ones_from_right(self.effective_bits as u32);
     }
     pub fn to_string(&self, radix: u32) -> String {
-        let mut t = 0u128;
-        let mut mask = 1u128;
-        for i in 0..self.buffer.len() {
-            if self.buffer[i] {
-                t = t | mask;
-            }
-            mask <<= 1;
-        }
         match radix {
-            2 => format!("0b{:b}", t).to_owned(),
-            8 => format!("0o{:o}", t).to_owned(),
-            10 => format!("0d{}", t).to_owned(),
-            16 => format!("0x{:x}", t).to_owned(),
+            2 => format!("0b{:b}", self.buffer).to_owned(),
+            8 => format!("0o{:o}", self.buffer).to_owned(),
+            10 => format!("0d{}", self.buffer).to_owned(),
+            16 => format!("0x{:x}", self.buffer).to_owned(),
             _ => panic!("cannot translate to number of radix {}", radix)
         }
     }
     pub fn number_of_digits_in_radix(&self, radix: u32) -> usize {
-        (self.buffer.len() as f32 * 2f32.log2() / (radix as f32).log2() + 1f32) as usize
+        (self.effective_bits as f32 * 2f32.log2() / (radix as f32).log2() + 1f32) as usize
     }
+}
+
+fn mask_nth_bit(n: usize) -> u128 {
+    (2 as i128).pow(n as u32) as u128
+}
+
+fn mask_n_ones_from_right(n: u32) -> u128 {
+    (!-(2 as i128).pow(n)) as u128
+}
+
+fn mask_from_bit_to_bit(high_inclusive: usize, low: usize) -> u128 {
+    mask_n_ones_from_right((high_inclusive + 1 - low) as u32) << low
 }
 
 const NUMBER_OF_CONVEX_DELTAHEDRON: i32 = 8;
@@ -266,7 +184,9 @@ const NUMBER_OF_DEADLY_SINS: i32 = 7;
 /// 3.1 Rounding Up/Down to a Multiple of a Known Power of 2
 /// 3.2 Rounding Up/Down to the Next Power of 2
 fn next_power_of_two_rounded_up(length: usize) -> Result<usize, String> {
-    if 0 < length && length < 513 {
+    if 0 == length {
+        Ok(8)
+    } else if length < 513 {
         let abra = (length as i32 - NUMBER_OF_BLACK_PRESIDENTS_OF_US).leading_zeros() as i32;
         let cadabra = (0x80_00_00_00u32 >> (abra - NUMBER_OF_BLACK_PRESIDENTS_OF_US)) as i32;
         Ok(((cadabra + NUMBER_OF_DEADLY_SINS) & -NUMBER_OF_CONVEX_DELTAHEDRON) as usize)
@@ -275,12 +195,16 @@ fn next_power_of_two_rounded_up(length: usize) -> Result<usize, String> {
     }
 }
 
+fn next_power_of_two(n: usize) -> usize {
+    (0x80_00_00_00u32 >> ((n as i32 - 1).leading_zeros() as i32 - 1)) as usize
+}
+
 impl Display for Number {
     // TODO colored output
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         // write first index line
         write!(f, "   ")?;
-        let mut first_index_line = self.buffer.len() as i32 - 1;
+        let mut first_index_line = self.effective_bits as i32 - 1;
         while first_index_line >= 0 {
             write!(f, "{}", format!("{:<2}{:>7}  ", first_index_line, first_index_line - 7))?;
             first_index_line -= 8;
@@ -288,34 +212,29 @@ impl Display for Number {
         writeln!(f, "")?;
 
         // write bits
-        let sign_char = match self.buffer.last() {
-            Some(true) if self.is_signed => '-',
-            Some(false) if self.is_signed => '+',
-            _ => 'u'
+        let sign_char = if self.is_signed {
+            if self.buffer & (1 << self.effective_bits) == 0 { '+' } else { '-' }
+        } else {
+            'u'
         };
         write!(f, "{}  ", sign_char)?;
-        for _ in self.buffer.len()..self.buffer.len() {
-            write!(f, "{}", 0)?;
-        }
-        let mut count = 0;
-        for b in self.buffer.iter().take(self.buffer.len()).rev() {
-            count += 1;
-            match b {
-                true => write!(f, "{}", 1),
-                false => write!(f, "{}", 0)
-            }?;
+        let mut count = self.effective_bits as i32 - 1;
+        while 0 <= count {
+            write!(f, "{}", (self.buffer & (1 << count)) >> count)?;
+
             if count % 4 == 0 {
                 write!(f, " ")?;
             }
             if count % 8 == 0 {
                 write!(f, " ")?;
             }
+            count -= 1;
         }
         writeln!(f, "")?;
 
         // write second index line
         write!(f, "c {}", if self.carry { '1' } else { '0' })?;
-        let mut second_index_line = self.buffer.len() as i32 - 4;
+        let mut second_index_line = self.effective_bits as i32 - 4;
         while second_index_line >= 0 {
             //  60 59
             write!(f, "{}", format!("{:>4} {:<4}  ", second_index_line, second_index_line - 1))?;
@@ -326,107 +245,35 @@ impl Display for Number {
 }
 
 #[test]
-fn add_test_add_by_one() {
-    let mut n = Number::from("0", 10).unwrap();
-    assert_eq!(0, n.to_usize());
-    n.add_number(1, usize::MAX);
-    assert_eq!(1, n.to_usize());
-    n.add_number(1, usize::MAX);
-    assert_eq!(0b10, n.to_usize());
-    n.add_number(1, usize::MAX);
-    assert_eq!(0b11, n.to_usize());
-    n.add_number(1, usize::MAX);
-    assert_eq!(0b100, n.to_usize());
-
-    let mut n = Number::from("0", 10).unwrap();
-    n.add_number(u32::MAX, usize::MAX);
-    assert_eq!(u32::MAX as usize, n.to_usize());
-    // assert_eq!("11111111", n.to_string(2));
-
-    let mut n = Number::from("1", 10).unwrap();
-    n.add_number(u32::MAX, usize::MAX);
-    assert_eq!("0b100000000000000000000000000000000", n.to_string(2));
-    // assert_eq!("00000000", n.to_string(2));
-
-    let mut n = Number::from("1", 10).unwrap();
-    n.add_number(u32::MAX, n.max_size());
-    assert_eq!(0, n.to_usize());
+fn mask_n_ones_from_right_test() {
+    assert_eq!(0, mask_n_ones_from_right(0));
+    assert_eq!(1, mask_n_ones_from_right(1));
+    assert_eq!(0b11, mask_n_ones_from_right(2));
+    assert_eq!(0b111, mask_n_ones_from_right(3));
+    assert_eq!(0b1111, mask_n_ones_from_right(4));
+    assert_eq!(0b11111, mask_n_ones_from_right(5));
+    assert_eq!(0xff_ff_ff_ff, mask_n_ones_from_right(32));
+    assert_eq!(0x7f_ff_ff_ff_ff_ff_ff_ff, mask_n_ones_from_right(63));
 }
 
 #[test]
-fn add_test_add_three() {
-    let mut n = Number::from("0", 10).unwrap();
-    assert_eq!(0, n.to_usize());
-    n.add_number(3, n.max_size());
-    assert_eq!(0b11, n.to_usize());
+fn next_power_of_two_test() {
+    // assert_eq!(1, next_power_of_two(0));
+    assert_eq!(1, next_power_of_two(1));
+    assert_eq!(2, next_power_of_two(2));
+    assert_eq!(4, next_power_of_two(3));
+    assert_eq!(4, next_power_of_two(4));
 }
 
 #[test]
-fn add_bools_test() {
-    let mut n = Number::from("0", 10).unwrap();
-    n.add_bools(&[true]);
-    assert_eq!(0b1, n.to_usize());
-    n.add_bools(&[true]);
-    assert_eq!(0b10, n.to_usize());
-    n.add_bools(&[true]);
-    assert_eq!(0b11, n.to_usize());
-    n.add_bools(&[true]);
-    assert_eq!(0b100, n.to_usize());
-
-    let mut n = Number::from("15", 10).unwrap();
-    n.add_bools(&[true]);
-    assert_eq!(0b10000, n.to_usize());
-
-    n.add_bools(&[true, false]);
-    assert_eq!(0b10001, n.to_usize());
-
-    let mut n = Number::from("0", 10).unwrap();
-    n.add_bools(&[true, true]);
-    assert_eq!(0b11, n.to_usize());
-
-    let mut n = Number::from("1", 10).unwrap();
-    n.add_bools(&[false, true]);
-    assert_eq!(0b11, n.to_usize());
-}
-
-#[test]
-fn add_vecs_test_add_all_false() {
-    let mut n = Number::from("0", 10).unwrap();
-    assert_eq!(0, n.to_usize());
-    n.add_number(0, usize::MAX);
-    assert_eq!(0, n.to_usize());
-
-    let mut n = Number::from("0", 10).unwrap();
-    n.add_number(1, usize::MAX);
-    assert_eq!(0b1, n.to_usize());
-
-    let mut n = Number::from("0", 10).unwrap();
-    n.add_number(10, usize::MAX);
-    assert_eq!(0b1010, n.to_usize());
-
-    let mut n = Number::from("1", 10).unwrap();
-    n.add_number(10, usize::MAX);
-    assert_eq!(0b1011, n.to_usize());
-}
-
-#[test]
-fn mul_number_test() {
-    let mut n = Number::from("0", 10).unwrap();
-    n.mul_number(142);
-    assert_eq!(0, n.to_usize());
-
-    let mut n = Number::from("10", 10).unwrap();
-    n.mul_number(1);
-    assert_eq!(0b1010, n.to_usize());
-
-    let mut n = Number::from("1", 10).unwrap();
-    assert_eq!(1, n.to_usize());
-    n.mul_number(10);
-    assert_eq!(0b1010, n.to_usize());
-
-    let mut n = Number::from("1", 10).unwrap();
-    n.mul_number(16);
-    assert_eq!(0b10000, n.to_usize());
+fn mask_from_bit_to_bit_test() {
+    assert_eq!(0b1, mask_from_bit_to_bit(0, 0));
+    assert_eq!(0b11, mask_from_bit_to_bit(1, 0));
+    assert_eq!(0b111, mask_from_bit_to_bit(2, 0));
+    assert_eq!(0b1111, mask_from_bit_to_bit(3, 0));
+    assert_eq!(0b10, mask_from_bit_to_bit(1, 1));
+    assert_eq!(0b110, mask_from_bit_to_bit(2, 1));
+    assert_eq!(0b1110, mask_from_bit_to_bit(3, 1));
 }
 
 #[test]
@@ -523,21 +370,21 @@ fn from_str_r16() {
 fn number_get_bits() {
     let n = Number::from("F", 16).unwrap();
     let bits = n.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
-    assert_eq!([true, true, true, true, false, false, false, false], bits);
+    assert_eq!(0xf, bits);
 
     let n = Number::from("1E", 16).unwrap();
     let bits = n.get_bits(BitsIndexRange(BitsIndex::IndexedBit(3), BitsIndex::IndexedBit(0)));
-    assert_eq!([false, true, true, true], bits);
+    assert_eq!(0b1110, bits);
     let bits = n.get_bits(BitsIndexRange(BitsIndex::IndexedBit(4), BitsIndex::IndexedBit(1)));
-    assert_eq!([true; 4], bits);
+    assert_eq!(0xf, bits);
     let bits = n.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
-    assert_eq!([false, true, true, true, true, false, false, false], bits);
+    assert_eq!(0b00011110, bits);
 }
 
 #[test]
 fn number_set_bits() {
     let mut n = Number::from("0", 16).unwrap();
-    n.set_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit), &[true, true]);
+    n.set_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit), 0b11);
     assert_eq!(0b11, n.to_usize());
 }
 
