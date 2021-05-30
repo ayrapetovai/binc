@@ -91,6 +91,7 @@ fn main() {
                                 }
                                 Err(err_msg) => println!("operation error: {}", err_msg)
                             }
+                            trace!("BUFFER: signed {}, size {}, {:b} ", main_buffer.signed(), main_buffer.max_size(), main_buffer.to_u128());
                         }
                         Err(err_msg) => println!("parsing error: {}", err_msg)
                     }

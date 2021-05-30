@@ -23,7 +23,7 @@ type BufferType = u128;
 
 #[derive(Debug)]
 pub struct Number {
-    buffer: BufferType,
+    buffer: BufferType, // only right "effective_bits" are used
     effective_bits: usize,
     number_type: NumberType,
     is_signed: bool,
@@ -81,7 +81,7 @@ impl Number {
         }
         Ok(
             Self {
-                buffer: buffer & mask_n_ones_from_right(length_in_bits as u32),
+                buffer: buffer & mask_n_ones_from_right(length_in_bits),
                 effective_bits: length_in_bits,
                 number_type: if number_literal.contains(".") { NumberType::Float } else { NumberType::Integer },
                 is_signed: is_negative,
@@ -91,12 +91,13 @@ impl Number {
     }
 
     pub fn add_bits(&mut self, additive: u128) {
-        self.buffer += additive;
-        self.carry = self.buffer & (1 << self.effective_bits) != 0;
-        self.buffer = self.buffer & mask_n_ones_from_right(self.effective_bits as u32);
+        self.carry = false; // TODO
+        self.buffer = self.buffer.wrapping_add(additive);
+        self.buffer = self.buffer & mask_n_ones_from_right(self.effective_bits);
     }
 
     pub fn assign_value(&mut self, other: &Number) {
+        // self.effective_bits must not be changed
         self.buffer = other.buffer;
         self.number_type = other.number_type;
         self.is_signed = other.is_signed;
@@ -121,7 +122,7 @@ impl Number {
         trace!("Number::set_bits: range {:?}, source {:b}", range, source_bits);
         let high_index = self.resolve_bit_index(range.0);
         let low_index = self.resolve_bit_index(range.1);
-        self.buffer = (self.buffer & !mask_from_bit_to_bit(high_index, low_index)) | ((source_bits & mask_n_ones_from_right((high_index - low_index + 1) as u32)) << low_index)
+        self.buffer = (self.buffer & !mask_from_bit_to_bit(high_index, low_index)) | ((source_bits & mask_n_ones_from_right((high_index - low_index + 1))) << low_index)
     }
 
     pub fn max_size(&self) -> usize {
@@ -132,34 +133,55 @@ impl Number {
     pub fn signed_extend_to(&mut self, new_max_size: usize) {
         // if this is signed and negative
         if self.is_signed && self.buffer & mask_nth_bit(self.effective_bits - 1) != 0 {
-            self.buffer = self.buffer | (mask_n_ones_from_right(self.buffer.leading_zeros()) << (size_of::<BufferType>()*8 - self.buffer.leading_zeros() as usize));
+            self.buffer = self.buffer | (mask_n_ones_from_right(self.buffer.leading_zeros() as usize) << (size_of::<BufferType>()*8 - self.buffer.leading_zeros() as usize));
         }
         self.effective_bits = new_max_size;
     }
     pub fn convert(&mut self, number_type: NumberType, signed: bool, size: usize) {
+        trace!("Number::convert {:?}, signed {}, size {}", number_type, signed, size);
         self.number_type = number_type;
         self.is_signed = signed;
         self.effective_bits = size;
-        self.buffer = self.buffer & mask_n_ones_from_right(size as u32);
+        self.buffer = self.buffer & mask_n_ones_from_right(size);
     }
     pub fn to_usize(&self) -> usize {
         self.buffer as usize
     }
+    pub fn to_u128(&self) -> u128 {
+        self.buffer
+    }
     pub fn flip_all(&mut self) {
         self.buffer = !self.buffer;
-        self.buffer = self.buffer & mask_n_ones_from_right(self.effective_bits as u32);
+        self.buffer = self.buffer & mask_n_ones_from_right(self.effective_bits);
     }
     pub fn to_string(&self, radix: u32) -> String {
-        match radix {
-            2 => format!("0b{:b}", self.buffer).to_owned(),
-            8 => format!("0o{:o}", self.buffer).to_owned(),
-            10 => format!("0d{}", self.buffer).to_owned(),
-            16 => format!("0x{:x}", self.buffer).to_owned(),
-            _ => panic!("cannot translate to number of radix {}", radix)
+        if self.is_negative() {
+            let value = !(self.buffer - 1) & mask_n_ones_from_right(self.effective_bits - 1);
+            match radix {
+                2 => format!("-0b{:b}", value).to_owned(),
+                8 => format!("-0o{:o}", value).to_owned(),
+                10 => format!("-0d{}", value).to_owned(),
+                16 => format!("-0x{:x}", value).to_owned(),
+                _ => panic!("cannot translate to number of radix {}", radix)
+            }
+        } else {
+            match radix {
+                2 => format!("0b{:b}", self.buffer).to_owned(),
+                8 => format!("0o{:o}", self.buffer).to_owned(),
+                10 => format!("0d{}", self.buffer).to_owned(),
+                16 => format!("0x{:x}", self.buffer).to_owned(),
+                _ => panic!("cannot translate to number of radix {}", radix)
+            }
         }
+    }
+    pub fn is_negative(&self) -> bool {
+        self.is_signed && self.buffer & mask_nth_bit(self.effective_bits - 1) != 0
     }
     pub fn number_of_digits_in_radix(&self, radix: u32) -> usize {
         (self.effective_bits as f32 * 2f32.log2() / (radix as f32).log2() + 1f32) as usize
+    }
+    pub fn signed(&self) -> bool {
+        self.is_signed
     }
 }
 
@@ -167,12 +189,12 @@ fn mask_nth_bit(n: usize) -> u128 {
     (2 as i128).pow(n as u32) as u128
 }
 
-fn mask_n_ones_from_right(n: u32) -> u128 {
-    (!-(2 as i128).pow(n)) as u128
+fn mask_n_ones_from_right(n: usize) -> u128 {
+    (!-(2 as i128).pow(n as u32)) as u128
 }
 
 fn mask_from_bit_to_bit(high_inclusive: usize, low: usize) -> u128 {
-    mask_n_ones_from_right((high_inclusive + 1 - low) as u32) << low
+    mask_n_ones_from_right((high_inclusive + 1 - low)) << low
 }
 
 const NUMBER_OF_CONVEX_DELTAHEDRON: i32 = 8;
@@ -213,7 +235,7 @@ impl Display for Number {
 
         // write bits
         let sign_char = if self.is_signed {
-            if self.buffer & (1 << self.effective_bits) == 0 { '+' } else { '-' }
+            if self.is_negative() { '-' } else { '+' }
         } else {
             'u'
         };

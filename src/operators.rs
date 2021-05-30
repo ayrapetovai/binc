@@ -65,7 +65,7 @@ pub fn operator_sum(buffer: &mut Number, left: LeftOperandSource, right: RightOp
                 LeftOperandSource::RangeSource(target_range) => {
                     let bits = second_sum_operand.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
                     trace!("operator_sum: get bits: {:?}", bits);
-                    buffer.add_bits(bits);
+                    buffer.add_bits(bits); // buffer.add_bits(target_range, bits);
                 },
                 LeftOperandSource::NamedAccessSource(_) => {},
             }
@@ -88,12 +88,22 @@ pub fn operator_unsigned_shift_left(buffer: &mut Number, left: LeftOperandSource
     Ok((Historical, Some("not implemented".to_owned())))
 }
 
-pub fn operator_bits_width(buffer: &mut Number, _: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+pub fn operator_int_bits_width(buffer: &mut Number, _: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
         RightOperandSource::DirectSource(number) => {
-            buffer.convert(NumberType::Integer, true, number.to_usize());
+            buffer.convert(NumberType::Integer, buffer.signed(), number.to_usize());
             Ok((Historical, None))
         }
         _ => return Err("Bit width is necessary argument".to_owned())
     }
+}
+
+pub fn operator_signed(buffer: &mut Number, _: LeftOperandSource, _: RightOperandSource) -> OperationResult {
+    buffer.convert(NumberType::Integer, true, buffer.max_size());
+    Ok((Historical, None))
+}
+
+pub fn operator_unsigned(buffer: &mut Number, _: LeftOperandSource, _: RightOperandSource) -> OperationResult {
+    buffer.convert(NumberType::Integer, false, buffer.max_size());
+    Ok((Historical, None))
 }
