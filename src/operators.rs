@@ -1,5 +1,6 @@
 use crate::syntax::{LeftOperandSource, RightOperandSource};
 use crate::number::{Number, BitsIndexRange, BitsIndex, NumberType};
+use colored::{Colorize, Color};
 use log::trace;
 
 pub type OperationResult = Result<(HandlerResult, Option<String>), String>;
@@ -9,7 +10,6 @@ pub enum HandlerResult {
     Historical,
     Nonhistorical
 }
-
 use HandlerResult::Nonhistorical;
 use HandlerResult::Historical;
 
@@ -17,16 +17,24 @@ pub type Operator = fn(buffer: &mut Number, left: LeftOperandSource, right: Righ
 
 // TODO colored output
 pub fn operator_show_help(_: &mut Number, _: LeftOperandSource, _: RightOperandSource) -> OperationResult {
-    Ok((
-        Nonhistorical,
-        Some(
-"X operator Y: >> << >>> <<< + - * / pow sqrt > < s<< s>> s>>> s<<< ^ & | <> == = count
-operator X: ! random shuffle reverse ~
-X and Y can be: [] [i] [:] [i:] [:j] [i:j] c; e f
-only Y can be: 1 3.14 -0; -inf +inf NaN eps; 'a'
-commands: intX floatX fixedX printf signed unsigned history undo redo about ?".to_owned()
-        )
-    ))
+    let mut buffer = String::with_capacity(400);
+
+    buffer.push_str(format!("{}", "X operator Y:".color(Color::BrightGreen)).as_str());
+    buffer.push_str(" >> << >>> <<< + - * / pow sqrt > < s<< s>> s>>> s<<< ^ & | <> == = count\r\n");
+
+    buffer.push_str(format!("{}", "operator X:".color(Color::BrightGreen)).as_str());
+    buffer.push_str(" ! random shuffle reverse ~\r\n");
+
+    buffer.push_str(format!("{}", "X and Y can be:".color(Color::BrightGreen)).as_str());
+    buffer.push_str(" [] [i] [:] [i:] [:j] [i:j] c; e f\r\n");
+
+    buffer.push_str(format!("{}", "only Y can be:".color(Color::BrightGreen)).as_str());
+    buffer.push_str(" 1 3.14 -0; -inf +inf NaN eps; 'a'\r\n");
+
+    buffer.push_str(format!("{}", "commands:".color(Color::BrightGreen)).as_str());
+    buffer.push_str(" intX floatX fixedX printf signed unsigned history undo redo about ?");
+
+    Ok((Nonhistorical, Some(buffer)))
 }
 
 pub fn operator_assign(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
