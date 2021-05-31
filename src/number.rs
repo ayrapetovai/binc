@@ -1,6 +1,7 @@
 use std::fmt::{Display, Formatter};
 use log::trace;
 use std::mem::size_of;
+use colored::{Colorize, Color};
 
 #[derive(Debug, Copy, Clone)]
 pub enum BitsIndex {
@@ -113,6 +114,7 @@ impl Number {
     }
 
     pub fn get_bits(&self, range: BitsIndexRange) -> u128 {
+        trace!("Number::get_bits: range {:?}", range);
         let high_order_bit_index = self.resolve_bit_index(range.0);
         let low_order_bit_index = self.resolve_bit_index(range.1);
         (self.buffer & mask_from_bit_to_bit(high_order_bit_index, low_order_bit_index)) >> low_order_bit_index
@@ -186,11 +188,18 @@ impl Number {
 }
 
 fn mask_nth_bit(n: usize) -> u128 {
-    (2 as i128).pow(n as u32) as u128
+    match n {
+        127 => 1u128 << 127,
+        _ => (2 as i128).pow(n as u32) as u128
+    }
 }
 
 fn mask_n_ones_from_right(n: usize) -> u128 {
-    (!-(2 as i128).pow(n as u32)) as u128
+    match n {
+        127 => u128::MAX >> 1,
+        128 => u128::MAX,
+        _ => (!-(2 as i128).pow(n as u32)) as u128
+    }
 }
 
 fn mask_from_bit_to_bit(high_inclusive: usize, low: usize) -> u128 {
@@ -228,7 +237,7 @@ impl Display for Number {
         write!(f, "   ")?;
         let mut first_index_line = self.effective_bits as i32 - 1;
         while first_index_line >= 0 {
-            write!(f, "{}", format!("{:<2}{:>7}  ", first_index_line, first_index_line - 7))?;
+            write!(f, "{}", format!("{:<3}{:>6}  ", first_index_line, first_index_line - 7))?;
             first_index_line -= 8;
         }
         writeln!(f, "")?;
@@ -241,18 +250,19 @@ impl Display for Number {
         };
         write!(f, "{}  ", sign_char)?;
         let mut count = self.effective_bits as i32 - 1;
+        let mut buffer = String::with_capacity(self.effective_bits + (self.effective_bits / 8) + (self.effective_bits / 4));
         while 0 <= count {
-            write!(f, "{}", (self.buffer & (1 << count)) >> count)?;
+            buffer.push_str(format!("{}", (self.buffer & (1 << count)) >> count).as_str());
 
             if count % 4 == 0 {
-                write!(f, " ")?;
+                buffer.push_str(" ");
             }
             if count % 8 == 0 {
-                write!(f, " ")?;
+                buffer.push_str(" ");
             }
             count -= 1;
         }
-        writeln!(f, "")?;
+        writeln!(f, "{}", buffer.color(Color::Red))?;
 
         // write second index line
         write!(f, "c {}", if self.carry { '1' } else { '0' })?;
@@ -276,6 +286,10 @@ fn mask_n_ones_from_right_test() {
     assert_eq!(0b11111, mask_n_ones_from_right(5));
     assert_eq!(0xff_ff_ff_ff, mask_n_ones_from_right(32));
     assert_eq!(0x7f_ff_ff_ff_ff_ff_ff_ff, mask_n_ones_from_right(63));
+    assert_eq!(0xff_ff_ff_ff_ff_ff_ff_ff, mask_n_ones_from_right(64));
+    assert_eq!(0x3f_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff, mask_n_ones_from_right(126));
+    assert_eq!(0x7f_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff, mask_n_ones_from_right(127));
+    assert_eq!(0xff_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff, mask_n_ones_from_right(128));
 }
 
 #[test]

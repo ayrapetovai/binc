@@ -12,6 +12,7 @@ use syntax::parse;
 use operators::{HandlerResult};
 use crate::operators::OperationResult;
 use clap::{App, Arg};
+use colored::{Colorize, Color};
 
 // TODO string builder with formatting
 fn print_ui(number: &Number) {
@@ -22,7 +23,7 @@ fn print_ui(number: &Number) {
     );
 
     println!();
-    println!("{}", line);
+    println!("{}", line.color(Color::BrightYellow));
     println!("{}", number);
 }
 
@@ -61,7 +62,7 @@ fn main() {
 
     // `()` can be used when no completer is required
     let mut cli_editor = Editor::<()>::new();
-    let mut main_buffer = Number::new(NumberType::Integer, false, 32).unwrap();
+    let mut main_buffer = Number::new(NumberType::Integer, true, 32).unwrap();
     loop {
         print_ui(&main_buffer);
         let input = cli_editor.readline("(binc) ");
