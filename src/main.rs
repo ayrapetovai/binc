@@ -14,7 +14,6 @@ use crate::operators::OperationResult;
 use clap::{App, Arg};
 use colored::{Colorize, Color};
 
-// TODO string builder with formatting
 fn print_ui(number: &Number) {
     let line = format!(
         "{3:>0$} {4:>1$} {5:>2$}",

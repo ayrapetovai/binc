@@ -97,6 +97,16 @@ impl Number {
         self.buffer = self.buffer & mask_n_ones_from_right(self.effective_bits);
     }
 
+    pub fn range_add_bits(&mut self, range: BitsIndexRange, additive: u128) {
+        let high_order_bit_index = self.resolve_bit_index(range.0);
+        let low_order_bit_index = self.resolve_bit_index(range.1);
+        self.carry = false; // TODO
+        let sum = ((self.buffer >> low_order_bit_index) & mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1)).wrapping_add(additive);
+        self.buffer = self.buffer & !(mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1) << low_order_bit_index);
+        self.buffer = self.buffer | ((sum & mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1)) << low_order_bit_index);
+        self.buffer = self.buffer & mask_n_ones_from_right(self.effective_bits);
+    }
+
     pub fn assign_value(&mut self, other: &Number) {
         // self.effective_bits must not be changed
         self.buffer = other.buffer;
@@ -131,7 +141,6 @@ impl Number {
         self.effective_bits as usize
     }
 
-    // TODO check weather the number is signed inside method, do not let caller to decide
     pub fn signed_extend_to(&mut self, new_max_size: usize) {
         // if this is signed and negative
         if self.is_signed && self.buffer & mask_nth_bit(self.effective_bits - 1) != 0 {
@@ -445,6 +454,30 @@ fn number_flip_all() {
     let mut n = Number::from(&u8::MAX.to_string(), 10).unwrap();
     n.flip_all();
     assert_eq!(0, n.to_usize());
+}
+
+#[test]
+fn number_range_add_bits() {
+    let mut n = Number::from("0", 10).unwrap();
+    assert_eq!(0, n.to_usize());
+    n.range_add_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit), 1);
+    assert_eq!(1, n.to_usize());
+
+    let mut n = Number::from("ffff00", 16).unwrap();
+    n.range_add_bits(BitsIndexRange(BitsIndex::IndexedBit(23), BitsIndex::IndexedBit(8)), 1);
+    assert_eq!(0x00_0000_00, n.to_usize());
+
+    let mut n = Number::from("fffe00", 16).unwrap();
+    n.range_add_bits(BitsIndexRange(BitsIndex::IndexedBit(23), BitsIndex::IndexedBit(8)), 1);
+    assert_eq!(0xffff00, n.to_usize());
+
+    let mut n = Number::from("0", 16).unwrap();
+    n.range_add_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::IndexedBit(0)), 1);
+    assert_eq!(1, n.to_usize());
+
+    let mut n = Number::from("0", 16).unwrap();
+    n.range_add_bits(BitsIndexRange(BitsIndex::IndexedBit(7), BitsIndex::IndexedBit(7)), 1);
+    assert_eq!(0x80, n.to_usize());
 }
 
 #[test]

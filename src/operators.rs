@@ -73,7 +73,7 @@ pub fn operator_sum(buffer: &mut Number, left: LeftOperandSource, right: RightOp
                 LeftOperandSource::RangeSource(target_range) => {
                     let bits = second_sum_operand.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
                     trace!("operator_sum: get bits: {:?}", bits);
-                    buffer.add_bits(bits); // buffer.add_bits(target_range, bits);
+                    buffer.range_add_bits(target_range, bits);
                 },
                 LeftOperandSource::NamedAccessSource(_) => {},
             }
@@ -81,7 +81,9 @@ pub fn operator_sum(buffer: &mut Number, left: LeftOperandSource, right: RightOp
         RightOperandSource::RangeSource(source_range) => {
             match left {
                 LeftOperandSource::RangeSource(target_range) => {
-                    todo!()
+                    let bits = buffer.get_bits(source_range);
+                    trace!("operator_sum: get bits: {:?}", bits);
+                    buffer.range_add_bits(target_range, bits);
                 },
                 LeftOperandSource::NamedAccessSource(_) => {},
             }
