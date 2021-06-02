@@ -126,6 +126,38 @@ pub fn operator_signed_shift_left(buffer: &mut Number, left: LeftOperandSource, 
     Ok((Historical, None))
 }
 
+pub fn operator_signed_shift_right(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+    match right {
+        RightOperandSource::DirectSource(mut second_operand) => {
+            match left {
+                LeftOperandSource::RangeSource(target_range) => {
+                    buffer.signed_shift_right(target_range, second_operand.to_usize());
+                },
+                LeftOperandSource::NamedAccessSource(_) => {},
+            }
+        }
+        RightOperandSource::RangeSource(source_range) => {
+            match left {
+                LeftOperandSource::RangeSource(target_range) => {
+                    let count = buffer.get_bits(source_range) as usize;
+                    buffer.signed_shift_right(target_range, count);
+                },
+                LeftOperandSource::NamedAccessSource(_) => {},
+            }
+        }
+        RightOperandSource::NamedAccessSource(_) => {},
+        RightOperandSource::Empty => {
+            match left {
+                LeftOperandSource::RangeSource(target_range) => {
+                    buffer.signed_shift_right(target_range, 1);
+                },
+                LeftOperandSource::NamedAccessSource(_) => {},
+            }
+        }
+    }
+    Ok((Historical, None))
+}
+
 pub fn operator_int_bits_width(buffer: &mut Number, _: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
         RightOperandSource::DirectSource(number) => {

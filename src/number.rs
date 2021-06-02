@@ -193,6 +193,19 @@ impl Number {
         self.buffer = self.buffer | (((bits_to_shift << count) & mask_n_ones_from_right(high_index - low_index + 1))<< low_index);
         // cyclic: self.buffer = self.buffer | ((bits_to_shift << count | bits_to_shift >> (self.effective_bits - count)) << low_index);
     }
+    /// pools sign bit (leftmost)
+    pub fn signed_shift_right(&mut self, range: BitsIndexRange, count: usize) {
+        let high_index = self.resolve_bit_index(range.0);
+        let low_index = self.resolve_bit_index(range.1);
+        let bits_to_shift = (self.buffer & (mask_n_ones_from_right(high_index - low_index + 1) << low_index)) >> low_index;
+        self.buffer = self.buffer & !(mask_n_ones_from_right(high_index - low_index + 1) << low_index);
+        let left_bits = if bits_to_shift & mask_nth_bit(high_index - low_index) != 0 {
+            mask_n_ones_from_right(count) << (high_index - low_index + 1 - count)
+        } else {
+            0
+        };
+        self.buffer = self.buffer | ((left_bits | (bits_to_shift >> count) & mask_n_ones_from_right(high_index - low_index + 1)) << low_index);
+    }
     pub fn is_negative(&self) -> bool {
         self.is_signed && self.buffer & mask_nth_bit(self.effective_bits - 1) != 0
     }
