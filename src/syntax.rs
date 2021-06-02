@@ -5,6 +5,7 @@ use crate::operators::operator_assign;
 use crate::operators::operator_sum;
 use crate::operators::operator_signed_shift_left;
 use crate::operators::operator_signed_shift_right;
+use crate::operators::operator_unsigned_shift_right;
 use crate::operators::operator_int_bits_width;
 use crate::operators::operator_signed;
 use crate::operators::operator_unsigned;
@@ -162,8 +163,9 @@ fn syntax_operator(it: ParsingIterator) -> (ParsingIterator, Option<Operator>) {
         Some('s') if it.match_from_current("signed") => (it.rewind_n(6), Some(operator_signed as Operator)),
         Some('h') if it.match_from_current("help") => (it.rewind_n(4), Some(operator_show_help as Operator)),
         Some('i') if it.match_from_current("int") => (it.rewind_n(3), Some(operator_int_bits_width as Operator)),
+        Some('>') if it.match_from_current(">>>") => (it.rewind_n(3), Some(operator_unsigned_shift_right as Operator)),
+        Some('>') if it.match_from_current(">>") => (it.rewind_n(2), Some(operator_signed_shift_right as Operator)),
         Some('<') if it.match_from_current("<<") => (it.rewind_n(2), Some(operator_signed_shift_left as Operator)),
-        Some('>') if it.match_from_current(">") => (it.rewind_n(2), Some(operator_signed_shift_right as Operator)),
         Some('?') => return (it.rewind(), Some(operator_show_help as Operator)),
         Some('=') => return (it.rewind(), Some(operator_assign as Operator)),
         Some('+') => return (it.rewind(), Some(operator_sum as Operator)),
