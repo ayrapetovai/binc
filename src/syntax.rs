@@ -3,7 +3,7 @@ use crate::operators::Operator;
 use crate::operators::operator_show_help;
 use crate::operators::operator_assign;
 use crate::operators::operator_sum;
-use crate::operators::operator_unsigned_shift_left;
+use crate::operators::operator_signed_shift_left;
 use crate::operators::operator_int_bits_width;
 use crate::operators::operator_signed;
 use crate::operators::operator_unsigned;
@@ -169,7 +169,7 @@ fn syntax_operator(it: ParsingIterator) -> (ParsingIterator, Option<Operator>) {
         return (it.rewind_n(3), Some(operator_int_bits_width as Operator))
     }
     if it.match_from_current("<<") {
-        return (it.rewind_n(2), Some(operator_unsigned_shift_left as Operator));
+        return (it.rewind_n(2), Some(operator_signed_shift_left as Operator));
     }
     match it.current() {
         Some('?') => return (it.rewind(), Some(operator_show_help as Operator)),

@@ -185,6 +185,14 @@ impl Number {
             }
         }
     }
+    pub fn signed_shift_left(&mut self, range: BitsIndexRange, count: usize) {
+        let high_index = self.resolve_bit_index(range.0);
+        let low_index = self.resolve_bit_index(range.1);
+        let bits_to_shift = (self.buffer & (mask_n_ones_from_right(high_index - low_index + 1) << low_index)) >> low_index;
+        self.buffer = self.buffer & !(mask_n_ones_from_right(high_index - low_index + 1) << low_index);
+        self.buffer = self.buffer | (((bits_to_shift << count) & mask_n_ones_from_right(high_index - low_index + 1))<< low_index);
+        // cyclic: self.buffer = self.buffer | ((bits_to_shift << count | bits_to_shift >> (self.effective_bits - count)) << low_index);
+    }
     pub fn is_negative(&self) -> bool {
         self.is_signed && self.buffer & mask_nth_bit(self.effective_bits - 1) != 0
     }
@@ -478,6 +486,32 @@ fn number_range_add_bits() {
     let mut n = Number::from("0", 16).unwrap();
     n.range_add_bits(BitsIndexRange(BitsIndex::IndexedBit(7), BitsIndex::IndexedBit(7)), 1);
     assert_eq!(0x80, n.to_usize());
+}
+
+#[test]
+fn number_signed_shift_left() {
+    let mut n = Number::from("1", 10).unwrap();
+    assert_eq!(0b1, n.to_usize());
+    n.signed_shift_left(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit), 1);
+    assert_eq!(0b10, n.to_usize());
+    n.signed_shift_left(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit), 1);
+    assert_eq!(0b100, n.to_usize());
+
+    let mut n = Number::new(NumberType::Integer, false, 32).unwrap();
+    n.set_bits(BitsIndexRange(BitsIndex::HighestBit,BitsIndex::HighestBit), 1);
+    n.signed_shift_left(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit), 1);
+    assert_eq!(0, n.to_usize());
+
+    let mut n = Number::new(NumberType::Integer, false, 32).unwrap();
+    n.set_bits(BitsIndexRange(BitsIndex::IndexedBit(23),BitsIndex::IndexedBit(12)), 0xfff);
+    n.signed_shift_left(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit), 1);
+    assert_eq!(0x01_ff_e0_00, n.to_usize());
+
+    n.signed_shift_left(BitsIndexRange(BitsIndex::IndexedBit(24), BitsIndex::IndexedBit(12)), 1);
+    assert_eq!(0x01_ff_c0_00, n.to_usize());
+
+    n.signed_shift_left(BitsIndexRange(BitsIndex::IndexedBit(24), BitsIndex::IndexedBit(12)), 1);
+    assert_eq!(0x01_ff_80_00, n.to_usize());
 }
 
 #[test]
