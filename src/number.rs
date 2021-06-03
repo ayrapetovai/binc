@@ -137,6 +137,16 @@ impl Number {
         self.buffer = self.buffer & mask_n_ones_from_right(self.effective_bits);
     }
 
+    pub fn range_mod_bits(&mut self, range: BitsIndexRange, multiplayer: u128) {
+        let high_order_bit_index = self.resolve_bit_index(range.0);
+        let low_order_bit_index = self.resolve_bit_index(range.1);
+        self.carry = false; // TODO
+        let mul = ((self.buffer >> low_order_bit_index) & mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1)).wrapping_rem(multiplayer);
+        self.buffer = self.buffer & !(mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1) << low_order_bit_index);
+        self.buffer = self.buffer | ((mul & mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1)) << low_order_bit_index);
+        self.buffer = self.buffer & mask_n_ones_from_right(self.effective_bits);
+    }
+
     pub fn assign_value(&mut self, other: &Number) {
         // self.effective_bits must not be changed
         self.buffer = other.buffer;
