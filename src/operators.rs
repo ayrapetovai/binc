@@ -20,7 +20,7 @@ pub fn operator_show_help(_: &mut Number, _: LeftOperandSource, _: RightOperandS
     let mut buffer = String::with_capacity(400);
 
     buffer.push_str(format!("{}", "X operator Y:".color(Color::BrightGreen)).as_str());
-    buffer.push_str(" >> << + - >>> * / > < pow sqrt <<~ ~>> ^ & | <> == = count\r\n");
+    buffer.push_str(" >> << + - >>> * / % > < pow sqrt <<~ ~>> ^ & | <> == = count\r\n");
 
     buffer.push_str(format!("{}", "operator X:".color(Color::BrightGreen)).as_str());
     buffer.push_str(" ! random shuffle reverse ~\r\n");
@@ -111,6 +111,60 @@ pub fn operator_sub(buffer: &mut Number, left: LeftOperandSource, right: RightOp
                 LeftOperandSource::RangeSource(target_range) => {
                     let bits = buffer.get_bits(source_range);
                     buffer.range_subtract_bits(target_range, bits);
+                },
+                LeftOperandSource::NamedAccessSource(_) => {},
+            }
+        }
+        RightOperandSource::NamedAccessSource(_) => {},
+        RightOperandSource::Empty => return Err("no second operand!".to_owned())
+    }
+    Ok((Historical, None))
+}
+
+pub fn operator_mul(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+    match right {
+        RightOperandSource::DirectSource(mut second_sum_operand) => {
+            second_sum_operand.signed_extend_to(buffer.max_size());
+            match left {
+                LeftOperandSource::RangeSource(target_range) => {
+                    let bits = second_sum_operand.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
+                    buffer.range_multiply_bits(target_range, bits);
+                },
+                LeftOperandSource::NamedAccessSource(_) => {},
+            }
+        }
+        RightOperandSource::RangeSource(source_range) => {
+            match left {
+                LeftOperandSource::RangeSource(target_range) => {
+                    let bits = buffer.get_bits(source_range);
+                    buffer.range_multiply_bits(target_range, bits);
+                },
+                LeftOperandSource::NamedAccessSource(_) => {},
+            }
+        }
+        RightOperandSource::NamedAccessSource(_) => {},
+        RightOperandSource::Empty => return Err("no second operand!".to_owned())
+    }
+    Ok((Historical, None))
+}
+
+pub fn operator_div(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+    match right {
+        RightOperandSource::DirectSource(mut second_sum_operand) => {
+            second_sum_operand.signed_extend_to(buffer.max_size());
+            match left {
+                LeftOperandSource::RangeSource(target_range) => {
+                    let bits = second_sum_operand.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
+                    buffer.range_div_bits(target_range, bits);
+                },
+                LeftOperandSource::NamedAccessSource(_) => {},
+            }
+        }
+        RightOperandSource::RangeSource(source_range) => {
+            match left {
+                LeftOperandSource::RangeSource(target_range) => {
+                    let bits = buffer.get_bits(source_range);
+                    buffer.range_div_bits(target_range, bits);
                 },
                 LeftOperandSource::NamedAccessSource(_) => {},
             }

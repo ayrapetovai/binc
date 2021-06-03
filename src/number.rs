@@ -102,7 +102,7 @@ impl Number {
         let low_order_bit_index = self.resolve_bit_index(range.1);
         self.carry = false; // TODO
         let sum = ((self.buffer >> low_order_bit_index) & mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1)).wrapping_add(additive);
-        self.buffer = self.buffer & !(mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1) << low_order_bit_index);
+        self.buffer = self.buffer & !mask_from_bit_to_bit(high_order_bit_index, low_order_bit_index);
         self.buffer = self.buffer | ((sum & mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1)) << low_order_bit_index);
         self.buffer = self.buffer & mask_n_ones_from_right(self.effective_bits);
     }
@@ -114,6 +114,26 @@ impl Number {
         let sub = ((self.buffer >> low_order_bit_index) & mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1)).wrapping_sub(subtractive);
         self.buffer = self.buffer & !(mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1) << low_order_bit_index);
         self.buffer = self.buffer | ((sub & mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1)) << low_order_bit_index);
+        self.buffer = self.buffer & mask_n_ones_from_right(self.effective_bits);
+    }
+
+    pub fn range_multiply_bits(&mut self, range: BitsIndexRange, multiplayer: u128) {
+        let high_order_bit_index = self.resolve_bit_index(range.0);
+        let low_order_bit_index = self.resolve_bit_index(range.1);
+        self.carry = false; // TODO
+        let mul = ((self.buffer >> low_order_bit_index) & mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1)).wrapping_mul(multiplayer);
+        self.buffer = self.buffer & !(mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1) << low_order_bit_index);
+        self.buffer = self.buffer | ((mul & mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1)) << low_order_bit_index);
+        self.buffer = self.buffer & mask_n_ones_from_right(self.effective_bits);
+    }
+
+    pub fn range_div_bits(&mut self, range: BitsIndexRange, multiplayer: u128) {
+        let high_order_bit_index = self.resolve_bit_index(range.0);
+        let low_order_bit_index = self.resolve_bit_index(range.1);
+        self.carry = false; // TODO
+        let mul = ((self.buffer >> low_order_bit_index) & mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1)).wrapping_div(multiplayer);
+        self.buffer = self.buffer & !(mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1) << low_order_bit_index);
+        self.buffer = self.buffer | ((mul & mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1)) << low_order_bit_index);
         self.buffer = self.buffer & mask_n_ones_from_right(self.effective_bits);
     }
 

@@ -4,6 +4,8 @@ use crate::operators::operator_show_help;
 use crate::operators::operator_assign;
 use crate::operators::operator_sum;
 use crate::operators::operator_sub;
+use crate::operators::operator_mul;
+use crate::operators::operator_div;
 use crate::operators::operator_signed_shift_left;
 use crate::operators::operator_signed_shift_right;
 use crate::operators::operator_unsigned_shift_right;
@@ -171,6 +173,8 @@ fn syntax_operator(it: ParsingIterator) -> (ParsingIterator, Option<Operator>) {
         Some('=') => return (it.rewind(), Some(operator_assign as Operator)),
         Some('+') => return (it.rewind(), Some(operator_sum as Operator)),
         Some('-') => return (it.rewind(), Some(operator_sub as Operator)),
+        Some('*') => return (it.rewind(), Some(operator_mul as Operator)),
+        Some('/') => return (it.rewind(), Some(operator_div as Operator)),
         _ => (it, None)
     }
 }
