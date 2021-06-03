@@ -107,6 +107,16 @@ impl Number {
         self.buffer = self.buffer & mask_n_ones_from_right(self.effective_bits);
     }
 
+    pub fn range_subtract_bits(&mut self, range: BitsIndexRange, subtractive: u128) {
+        let high_order_bit_index = self.resolve_bit_index(range.0);
+        let low_order_bit_index = self.resolve_bit_index(range.1);
+        self.carry = false; // TODO
+        let sub = ((self.buffer >> low_order_bit_index) & mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1)).wrapping_sub(subtractive);
+        self.buffer = self.buffer & !(mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1) << low_order_bit_index);
+        self.buffer = self.buffer | ((sub & mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1)) << low_order_bit_index);
+        self.buffer = self.buffer & mask_n_ones_from_right(self.effective_bits);
+    }
+
     pub fn assign_value(&mut self, other: &Number) {
         // self.effective_bits must not be changed
         self.buffer = other.buffer;

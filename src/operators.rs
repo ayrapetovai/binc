@@ -94,6 +94,33 @@ pub fn operator_sum(buffer: &mut Number, left: LeftOperandSource, right: RightOp
     Ok((Historical, None))
 }
 
+pub fn operator_sub(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+    match right {
+        RightOperandSource::DirectSource(mut second_sum_operand) => {
+            second_sum_operand.signed_extend_to(buffer.max_size());
+            match left {
+                LeftOperandSource::RangeSource(target_range) => {
+                    let bits = second_sum_operand.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
+                    buffer.range_subtract_bits(target_range, bits);
+                },
+                LeftOperandSource::NamedAccessSource(_) => {},
+            }
+        }
+        RightOperandSource::RangeSource(source_range) => {
+            match left {
+                LeftOperandSource::RangeSource(target_range) => {
+                    let bits = buffer.get_bits(source_range);
+                    buffer.range_subtract_bits(target_range, bits);
+                },
+                LeftOperandSource::NamedAccessSource(_) => {},
+            }
+        }
+        RightOperandSource::NamedAccessSource(_) => {},
+        RightOperandSource::Empty => return Err("no second operand!".to_owned())
+    }
+    Ok((Historical, None))
+}
+
 pub fn operator_signed_shift_left(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
         RightOperandSource::DirectSource(mut second_operand) => {
