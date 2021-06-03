@@ -20,7 +20,7 @@ pub fn operator_show_help(_: &mut Number, _: LeftOperandSource, _: RightOperandS
     let mut buffer = String::with_capacity(400);
 
     buffer.push_str(format!("{}", "X operator Y:".color(Color::BrightGreen)).as_str());
-    buffer.push_str(" >> << >>> <<< + - * / pow sqrt > < s<< s>> s>>> s<<< ^ & | <> == = count\r\n");
+    buffer.push_str(" >> << + - >>> * / > < pow sqrt <<~ ~>> ^ & | <> == = count\r\n");
 
     buffer.push_str(format!("{}", "operator X:".color(Color::BrightGreen)).as_str());
     buffer.push_str(" ! random shuffle reverse ~\r\n");

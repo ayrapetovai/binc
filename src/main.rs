@@ -6,6 +6,7 @@ mod operators;
 use number::{Number, NumberType};
 
 use log::{error, info, warn, trace};
+use rustyline::config::Configurer;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 use syntax::parse;
@@ -61,6 +62,7 @@ fn main() {
 
     // `()` can be used when no completer is required
     let mut cli_editor = Editor::<()>::new();
+    cli_editor.set_max_history_size(1000);
     let mut main_buffer = Number::new(NumberType::Integer, true, 32).unwrap();
     loop {
         print_ui(&main_buffer);

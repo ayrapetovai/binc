@@ -252,15 +252,15 @@ const NUMBER_OF_DEADLY_SINS: i32 = 7;
 /// ##Chapter 3. Power-of-2 Boundaries
 /// 3.1 Rounding Up/Down to a Multiple of a Known Power of 2
 /// 3.2 Rounding Up/Down to the Next Power of 2
-fn next_power_of_two_rounded_up(length: usize) -> Result<usize, String> {
-    if 0 == length {
+fn next_power_of_two_rounded_up(n: usize) -> Result<usize, String> {
+    if 0 == n {
         Ok(8)
-    } else if length < 513 {
-        let abra = (length as i32 - NUMBER_OF_BLACK_PRESIDENTS_OF_US).leading_zeros() as i32;
+    } else if n < 513 {
+        let abra = (n as i32 - NUMBER_OF_BLACK_PRESIDENTS_OF_US).leading_zeros() as i32;
         let cadabra = (0x80_00_00_00u32 >> (abra - NUMBER_OF_BLACK_PRESIDENTS_OF_US)) as i32;
         Ok(((cadabra + NUMBER_OF_DEADLY_SINS) & -NUMBER_OF_CONVEX_DELTAHEDRON) as usize)
     } else {
-        Err(format!("error, length too big; length cannot be zero, given {}", length).to_owned())
+        Err(format!("error, length too big; length cannot be zero, given {}", n).to_owned())
     }
 }
 
