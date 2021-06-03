@@ -317,3 +317,59 @@ pub fn operator_unsigned(buffer: &mut Number, _: LeftOperandSource, _: RightOper
     buffer.convert(NumberType::Integer, false, buffer.max_size());
     Ok((Historical, None))
 }
+
+pub fn operator_greater(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+    match right {
+        RightOperandSource::DirectSource(mut second_operand) => {
+            match left {
+                LeftOperandSource::RangeSource(target_range) => {
+                    let bits_second_op = second_operand.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
+                    let bits_first_op = buffer.get_bits(target_range);
+                    return Ok((Nonhistorical, Some((if bits_first_op > bits_second_op { "yes" } else { "no" }).to_owned())));
+                },
+                LeftOperandSource::NamedAccessSource(_) => {},
+            }
+        }
+        RightOperandSource::RangeSource(source_range) => {
+            match left {
+                LeftOperandSource::RangeSource(target_range) => {
+                    let bits_second_op = buffer.get_bits(source_range);
+                    let bits_first_op = buffer.get_bits(target_range);
+                    return Ok((Nonhistorical, Some((if bits_first_op > bits_second_op { "yes" } else { "no" }).to_owned())));
+                },
+                LeftOperandSource::NamedAccessSource(_) => {},
+            }
+        }
+        RightOperandSource::NamedAccessSource(_) => {},
+        RightOperandSource::Empty => return Err("no second operand!".to_owned())
+    }
+    Ok((Historical, None))
+}
+
+pub fn operator_less(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+    match right {
+        RightOperandSource::DirectSource(mut second_operand) => {
+            match left {
+                LeftOperandSource::RangeSource(target_range) => {
+                    let bits_second_op = second_operand.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
+                    let bits_first_op = buffer.get_bits(target_range);
+                    return Ok((Nonhistorical, Some((if bits_first_op < bits_second_op { "yes" } else { "no" }).to_owned())));
+                },
+                LeftOperandSource::NamedAccessSource(_) => {},
+            }
+        }
+        RightOperandSource::RangeSource(source_range) => {
+            match left {
+                LeftOperandSource::RangeSource(target_range) => {
+                    let bits_second_op = buffer.get_bits(source_range);
+                    let bits_first_op = buffer.get_bits(target_range);
+                    return Ok((Nonhistorical, Some((if bits_first_op < bits_second_op { "yes" } else { "no" }).to_owned())));
+                },
+                LeftOperandSource::NamedAccessSource(_) => {},
+            }
+        }
+        RightOperandSource::NamedAccessSource(_) => {},
+        RightOperandSource::Empty => return Err("no second operand!".to_owned())
+    }
+    Ok((Historical, None))
+}

@@ -13,6 +13,8 @@ use crate::operators::operator_unsigned_shift_right;
 use crate::operators::operator_int_bits_width;
 use crate::operators::operator_signed;
 use crate::operators::operator_unsigned;
+use crate::operators::operator_greater;
+use crate::operators::operator_less;
 use log::{info, trace, warn};
 use std::iter::FromIterator;
 
@@ -177,6 +179,8 @@ fn syntax_operator(it: ParsingIterator) -> (ParsingIterator, Option<Operator>) {
         Some('*') => return (it.rewind(), Some(operator_mul as Operator)),
         Some('/') => return (it.rewind(), Some(operator_div as Operator)),
         Some('%') => return (it.rewind(), Some(operator_mod as Operator)),
+        Some('>') => return (it.rewind(), Some(operator_greater as Operator)),
+        Some('<') => return (it.rewind(), Some(operator_less as Operator)),
         _ => (it, None)
     }
 }
