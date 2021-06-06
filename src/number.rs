@@ -10,7 +10,7 @@ pub enum BitsIndex {
     IndexedBit(usize)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct BitsIndexRange(pub BitsIndex, pub BitsIndex);
 
 #[derive(Debug, Copy, Clone)]

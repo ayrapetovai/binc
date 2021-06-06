@@ -20,6 +20,8 @@ use crate::operators::operator_signed;
 use crate::operators::operator_unsigned;
 use crate::operators::operator_greater;
 use crate::operators::operator_less;
+use crate::operators::operator_equals;
+use crate::operators::operator_swap;
 use log::{info, trace, warn};
 use std::iter::FromIterator;
 
@@ -177,8 +179,10 @@ fn syntax_operator(it: ParsingIterator) -> (ParsingIterator, Option<Operator>) {
         Some('~') if it.match_from_current("~>>") => (it.rewind_n(3), Some(operator_unsigned_cyclic_shift_right as Operator)),
         Some('<') if it.match_from_current("<<~") => (it.rewind_n(3), Some(operator_unsigned_cyclic_shift_left as Operator)),
         Some('>') if it.match_from_current(">>>") => (it.rewind_n(3), Some(operator_unsigned_shift_right as Operator)),
+        Some('<') if it.match_from_current("<>") => (it.rewind_n(2), Some(operator_swap as Operator)),
         Some('>') if it.match_from_current(">>") => (it.rewind_n(2), Some(operator_signed_shift_right as Operator)),
         Some('<') if it.match_from_current("<<") => (it.rewind_n(2), Some(operator_signed_shift_left as Operator)),
+        Some('=') if it.match_from_current("==") => (it.rewind_n(2), Some(operator_equals as Operator)),
         Some('?') => (it.rewind(), Some(operator_show_help as Operator)),
         Some('=') => (it.rewind(), Some(operator_assign as Operator)),
         Some('+') => (it.rewind(), Some(operator_sum as Operator)),

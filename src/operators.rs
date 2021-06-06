@@ -519,3 +519,51 @@ pub fn operator_less(buffer: &mut Number, left: LeftOperandSource, right: RightO
     }
     Ok((Historical, None))
 }
+
+pub fn operator_equals(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+    match right {
+        RightOperandSource::DirectSource(mut second_operand) => {
+            match left {
+                LeftOperandSource::RangeSource(target_range) => {
+                    let bits_second_op = second_operand.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
+                    let bits_first_op = buffer.get_bits(target_range);
+                    return Ok((Nonhistorical, Some((if bits_first_op == bits_second_op { "yes" } else { "no" }).to_owned())));
+                },
+                LeftOperandSource::NamedAccessSource(_) => {},
+            }
+        }
+        RightOperandSource::RangeSource(source_range) => {
+            match left {
+                LeftOperandSource::RangeSource(target_range) => {
+                    let bits_second_op = buffer.get_bits(source_range);
+                    let bits_first_op = buffer.get_bits(target_range);
+                    return Ok((Nonhistorical, Some((if bits_first_op == bits_second_op { "yes" } else { "no" }).to_owned())));
+                },
+                LeftOperandSource::NamedAccessSource(_) => {},
+            }
+        }
+        RightOperandSource::NamedAccessSource(_) => {},
+        RightOperandSource::Empty => return Err("no second operand!".to_owned())
+    }
+    Ok((Historical, None))
+}
+
+pub fn operator_swap(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+    match right {
+        RightOperandSource::DirectSource(mut second_operand) => return Err("cannot swap with rvalue!".to_owned()),
+        RightOperandSource::RangeSource(source_range) => {
+            match left {
+                LeftOperandSource::RangeSource(target_range) => {
+                    let bits_second_op = buffer.get_bits(source_range);
+                    let bits_first_op = buffer.get_bits(target_range);
+                    buffer.set_bits(target_range, bits_second_op);
+                    buffer.set_bits(source_range, bits_first_op);
+                },
+                LeftOperandSource::NamedAccessSource(_) => {},
+            }
+        }
+        RightOperandSource::NamedAccessSource(_) => {},
+        RightOperandSource::Empty => return Err("no second operand!".to_owned())
+    }
+    Ok((Historical, None))
+}
