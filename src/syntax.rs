@@ -7,6 +7,9 @@ use crate::operators::operator_sub;
 use crate::operators::operator_mul;
 use crate::operators::operator_div;
 use crate::operators::operator_mod;
+use crate::operators::operator_xor;
+use crate::operators::operator_and;
+use crate::operators::operator_or;
 use crate::operators::operator_signed_shift_left;
 use crate::operators::operator_signed_shift_right;
 use crate::operators::operator_unsigned_shift_right;
@@ -181,6 +184,9 @@ fn syntax_operator(it: ParsingIterator) -> (ParsingIterator, Option<Operator>) {
         Some('%') => (it.rewind(), Some(operator_mod as Operator)),
         Some('>') => (it.rewind(), Some(operator_greater as Operator)),
         Some('<') => (it.rewind(), Some(operator_less as Operator)),
+        Some('^') => (it.rewind(), Some(operator_xor as Operator)),
+        Some('&') => (it.rewind(), Some(operator_and as Operator)),
+        Some('|') => (it.rewind(), Some(operator_or as Operator)),
         _ => (it, None)
     }
 }

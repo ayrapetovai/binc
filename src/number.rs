@@ -92,12 +92,6 @@ impl Number {
         )
     }
 
-    pub fn add_bits(&mut self, additive: u128) {
-        self.carry = false; // TODO
-        self.buffer = self.buffer.wrapping_add(additive);
-        self.buffer = self.buffer & mask_n_ones_from_right(self.effective_bits);
-    }
-
     fn with_range_do_arithmetics(&mut self, range: BitsIndexRange, operand: u128, arithmetic: fn(u128, u128) -> u128,) {
         let high_order_bit_index = self.resolve_bit_index(range.0);
         let low_order_bit_index = self.resolve_bit_index(range.1);
@@ -126,6 +120,15 @@ impl Number {
 
     pub fn range_mod_bits(&mut self, range: BitsIndexRange, divisor: u128) {
         self.with_range_do_arithmetics(range, divisor, |a: u128, b: u128| a.wrapping_rem(b));
+    }
+    pub fn range_xor_bits(&mut self, range: BitsIndexRange, divisor: u128) {
+        self.with_range_do_arithmetics(range, divisor, |a: u128, b: u128| a ^ b);
+    }
+    pub fn range_and_bits(&mut self, range: BitsIndexRange, divisor: u128) {
+        self.with_range_do_arithmetics(range, divisor, |a: u128, b: u128| a & b);
+    }
+    pub fn range_or_bits(&mut self, range: BitsIndexRange, divisor: u128) {
+        self.with_range_do_arithmetics(range, divisor, |a: u128, b: u128| a | b);
     }
     pub fn signed_shift_left(&mut self, range: BitsIndexRange, count: usize) {
         self.with_range_do_arithmetics(range, count as u128, |a: u128, b: u128| a << b )
