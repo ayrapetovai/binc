@@ -97,54 +97,35 @@ impl Number {
         self.buffer = self.buffer & mask_n_ones_from_right(self.effective_bits);
     }
 
-    pub fn range_add_bits(&mut self, range: BitsIndexRange, additive: u128) {
+    fn with_range_do_arithmetics(&mut self, range: &BitsIndexRange, operand: u128, arithmetic: fn(u128, u128) -> u128,) {
         let high_order_bit_index = self.resolve_bit_index(range.0);
         let low_order_bit_index = self.resolve_bit_index(range.1);
         self.carry = false; // TODO
-        let sum = ((self.buffer >> low_order_bit_index) & mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1)).wrapping_add(additive);
-        self.buffer = self.buffer & !mask_from_bit_to_bit(high_order_bit_index, low_order_bit_index);
-        self.buffer = self.buffer | ((sum & mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1)) << low_order_bit_index);
+        let mul = ((self.buffer >> low_order_bit_index) & mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1));
+        let mul = arithmetic(mul, operand);
+        self.buffer = self.buffer & !(mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1) << low_order_bit_index);
+        self.buffer = self.buffer | ((mul & mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1)) << low_order_bit_index);
         self.buffer = self.buffer & mask_n_ones_from_right(self.effective_bits);
+    }
+
+    pub fn range_add_bits(&mut self, range: BitsIndexRange, additive: u128) {
+        self.with_range_do_arithmetics(&range, additive, |a: u128, b: u128| a.wrapping_add(b));
     }
 
     pub fn range_subtract_bits(&mut self, range: BitsIndexRange, subtractive: u128) {
-        let high_order_bit_index = self.resolve_bit_index(range.0);
-        let low_order_bit_index = self.resolve_bit_index(range.1);
-        self.carry = false; // TODO
-        let sub = ((self.buffer >> low_order_bit_index) & mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1)).wrapping_sub(subtractive);
-        self.buffer = self.buffer & !(mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1) << low_order_bit_index);
-        self.buffer = self.buffer | ((sub & mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1)) << low_order_bit_index);
-        self.buffer = self.buffer & mask_n_ones_from_right(self.effective_bits);
+        self.with_range_do_arithmetics(&range, subtractive, |a: u128, b: u128| a.wrapping_sub(b));
     }
 
     pub fn range_multiply_bits(&mut self, range: BitsIndexRange, multiplayer: u128) {
-        let high_order_bit_index = self.resolve_bit_index(range.0);
-        let low_order_bit_index = self.resolve_bit_index(range.1);
-        self.carry = false; // TODO
-        let mul = ((self.buffer >> low_order_bit_index) & mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1)).wrapping_mul(multiplayer);
-        self.buffer = self.buffer & !(mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1) << low_order_bit_index);
-        self.buffer = self.buffer | ((mul & mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1)) << low_order_bit_index);
-        self.buffer = self.buffer & mask_n_ones_from_right(self.effective_bits);
+        self.with_range_do_arithmetics(&range, multiplayer, |a: u128, b: u128| a.wrapping_mul(b));
     }
 
-    pub fn range_div_bits(&mut self, range: BitsIndexRange, multiplayer: u128) {
-        let high_order_bit_index = self.resolve_bit_index(range.0);
-        let low_order_bit_index = self.resolve_bit_index(range.1);
-        self.carry = false; // TODO
-        let mul = ((self.buffer >> low_order_bit_index) & mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1)).wrapping_div(multiplayer);
-        self.buffer = self.buffer & !(mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1) << low_order_bit_index);
-        self.buffer = self.buffer | ((mul & mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1)) << low_order_bit_index);
-        self.buffer = self.buffer & mask_n_ones_from_right(self.effective_bits);
+    pub fn range_div_bits(&mut self, range: BitsIndexRange, divisor: u128) {
+        self.with_range_do_arithmetics(&range, divisor, |a: u128, b: u128| a.wrapping_div(b));
     }
 
-    pub fn range_mod_bits(&mut self, range: BitsIndexRange, multiplayer: u128) {
-        let high_order_bit_index = self.resolve_bit_index(range.0);
-        let low_order_bit_index = self.resolve_bit_index(range.1);
-        self.carry = false; // TODO
-        let mul = ((self.buffer >> low_order_bit_index) & mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1)).wrapping_rem(multiplayer);
-        self.buffer = self.buffer & !(mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1) << low_order_bit_index);
-        self.buffer = self.buffer | ((mul & mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1)) << low_order_bit_index);
-        self.buffer = self.buffer & mask_n_ones_from_right(self.effective_bits);
+    pub fn range_mod_bits(&mut self, range: BitsIndexRange, divisor: u128) {
+        self.with_range_do_arithmetics(&range, divisor, |a: u128, b: u128| a.wrapping_rem(b));
     }
 
     pub fn assign_value(&mut self, other: &Number) {
