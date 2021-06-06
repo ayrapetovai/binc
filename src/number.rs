@@ -46,6 +46,7 @@ impl Number {
         }
     }
     pub fn from(number_literal: &str, radix: u32) -> Result<Self, String> {
+        let radix= radix as u128;
         trace!("Number::from: parsing literal '{}', radix {}", number_literal, radix);
         let is_negative = number_literal.starts_with("-");
         // TODO floating, fixed
@@ -60,10 +61,10 @@ impl Number {
                 'a'..='z' => c as u32 - 'a' as u32 + 10,
                 'A'..='Z' => c as u32 - 'A' as u32 + 10,
                 _ => return Err(format!("letter {} cannot represent a digit", c).to_owned())
-            };
+            } as u128;
             if n < radix {
-                buffer *= radix as u128;
-                buffer += n as u128;
+                buffer *= radix;
+                buffer += n;
             } else {
                 return Err(format!("Letter '{}' cannot be used for number notation in base {}", c, radix).to_owned());
             }
@@ -97,37 +98,56 @@ impl Number {
         self.buffer = self.buffer & mask_n_ones_from_right(self.effective_bits);
     }
 
-    fn with_range_do_arithmetics(&mut self, range: &BitsIndexRange, operand: u128, arithmetic: fn(u128, u128) -> u128,) {
+    fn with_range_do_arithmetics(&mut self, range: BitsIndexRange, operand: u128, arithmetic: fn(u128, u128) -> u128,) {
         let high_order_bit_index = self.resolve_bit_index(range.0);
         let low_order_bit_index = self.resolve_bit_index(range.1);
         self.carry = false; // TODO
-        let mul = ((self.buffer >> low_order_bit_index) & mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1));
-        let mul = arithmetic(mul, operand);
-        self.buffer = self.buffer & !(mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1) << low_order_bit_index);
+        let mul = arithmetic(self.get_bits(range), operand);
+        self.buffer = self.buffer & !mask_from_bit_to_bit(high_order_bit_index, low_order_bit_index);
         self.buffer = self.buffer | ((mul & mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1)) << low_order_bit_index);
         self.buffer = self.buffer & mask_n_ones_from_right(self.effective_bits);
     }
 
     pub fn range_add_bits(&mut self, range: BitsIndexRange, additive: u128) {
-        self.with_range_do_arithmetics(&range, additive, |a: u128, b: u128| a.wrapping_add(b));
+        self.with_range_do_arithmetics(range, additive, |a: u128, b: u128| a.wrapping_add(b));
     }
 
     pub fn range_subtract_bits(&mut self, range: BitsIndexRange, subtractive: u128) {
-        self.with_range_do_arithmetics(&range, subtractive, |a: u128, b: u128| a.wrapping_sub(b));
+        self.with_range_do_arithmetics(range, subtractive, |a: u128, b: u128| a.wrapping_sub(b));
     }
 
     pub fn range_multiply_bits(&mut self, range: BitsIndexRange, multiplayer: u128) {
-        self.with_range_do_arithmetics(&range, multiplayer, |a: u128, b: u128| a.wrapping_mul(b));
+        self.with_range_do_arithmetics(range, multiplayer, |a: u128, b: u128| a.wrapping_mul(b));
     }
 
     pub fn range_div_bits(&mut self, range: BitsIndexRange, divisor: u128) {
-        self.with_range_do_arithmetics(&range, divisor, |a: u128, b: u128| a.wrapping_div(b));
+        self.with_range_do_arithmetics(range, divisor, |a: u128, b: u128| a.wrapping_div(b));
     }
 
     pub fn range_mod_bits(&mut self, range: BitsIndexRange, divisor: u128) {
-        self.with_range_do_arithmetics(&range, divisor, |a: u128, b: u128| a.wrapping_rem(b));
+        self.with_range_do_arithmetics(range, divisor, |a: u128, b: u128| a.wrapping_rem(b));
     }
-
+    pub fn signed_shift_left(&mut self, range: BitsIndexRange, count: usize) {
+        self.with_range_do_arithmetics(range, count as u128, |a: u128, b: u128| a << b )
+        // cyclic: self.buffer = self.buffer | ((bits_to_shift << count | bits_to_shift >> (self.effective_bits - count)) << low_index);
+    }
+    /// pools sign bit (leftmost to right)
+    pub fn signed_shift_right(&mut self, range: BitsIndexRange, count: usize) {
+        let high_index = self.resolve_bit_index(range.0);
+        let low_index = self.resolve_bit_index(range.1);
+        let bits_to_shift = (self.buffer & (mask_n_ones_from_right(high_index - low_index + 1) << low_index)) >> low_index;
+        self.buffer = self.buffer & !(mask_n_ones_from_right(high_index - low_index + 1) << low_index);
+        let left_bits = if bits_to_shift & mask_nth_bit(high_index - low_index) != 0 {
+            mask_n_ones_from_right(count) << (high_index - low_index + 1 - count)
+        } else {
+            0
+        };
+        self.buffer = self.buffer | ((left_bits | (bits_to_shift >> count) & mask_n_ones_from_right(high_index - low_index + 1)) << low_index);
+    }
+    /// prepends with zeroes (leftmost)
+    pub fn unsigned_shift_right(&mut self, range: BitsIndexRange, count: usize) {
+        self.with_range_do_arithmetics(range, count as u128, |a: u128, b: u128| a >> b )
+    }
     pub fn assign_value(&mut self, other: &Number) {
         // self.effective_bits must not be changed
         self.buffer = other.buffer;
@@ -159,12 +179,12 @@ impl Number {
     }
 
     pub fn max_size(&self) -> usize {
-        self.effective_bits as usize
+        self.effective_bits
     }
 
     pub fn signed_extend_to(&mut self, new_max_size: usize) {
         // if this is signed and negative
-        if self.is_signed && self.buffer & mask_nth_bit(self.effective_bits - 1) != 0 {
+        if self.is_negative() {
             self.buffer = self.buffer | (mask_n_ones_from_right(self.buffer.leading_zeros() as usize) << (size_of::<BufferType>()*8 - self.buffer.leading_zeros() as usize));
         }
         self.effective_bits = new_max_size;
@@ -205,35 +225,6 @@ impl Number {
                 _ => panic!("cannot translate to number of radix {}", radix)
             }
         }
-    }
-    pub fn signed_shift_left(&mut self, range: BitsIndexRange, count: usize) {
-        let high_index = self.resolve_bit_index(range.0);
-        let low_index = self.resolve_bit_index(range.1);
-        let bits_to_shift = (self.buffer & (mask_n_ones_from_right(high_index - low_index + 1) << low_index)) >> low_index;
-        self.buffer = self.buffer & !(mask_n_ones_from_right(high_index - low_index + 1) << low_index);
-        self.buffer = self.buffer | (((bits_to_shift << count) & mask_n_ones_from_right(high_index - low_index + 1))<< low_index);
-        // cyclic: self.buffer = self.buffer | ((bits_to_shift << count | bits_to_shift >> (self.effective_bits - count)) << low_index);
-    }
-    /// pools sign bit (leftmost)
-    pub fn signed_shift_right(&mut self, range: BitsIndexRange, count: usize) {
-        let high_index = self.resolve_bit_index(range.0);
-        let low_index = self.resolve_bit_index(range.1);
-        let bits_to_shift = (self.buffer & (mask_n_ones_from_right(high_index - low_index + 1) << low_index)) >> low_index;
-        self.buffer = self.buffer & !(mask_n_ones_from_right(high_index - low_index + 1) << low_index);
-        let left_bits = if bits_to_shift & mask_nth_bit(high_index - low_index) != 0 {
-            mask_n_ones_from_right(count) << (high_index - low_index + 1 - count)
-        } else {
-            0
-        };
-        self.buffer = self.buffer | ((left_bits | (bits_to_shift >> count) & mask_n_ones_from_right(high_index - low_index + 1)) << low_index);
-    }
-    /// prepends with zeroes (leftmost)
-    pub fn unsigned_shift_right(&mut self, range: BitsIndexRange, count: usize) {
-        let high_index = self.resolve_bit_index(range.0);
-        let low_index = self.resolve_bit_index(range.1);
-        let bits_to_shift = (self.buffer & (mask_n_ones_from_right(high_index - low_index + 1) << low_index)) >> low_index;
-        self.buffer = self.buffer & !(mask_n_ones_from_right(high_index - low_index + 1) << low_index);
-        self.buffer = self.buffer | (((bits_to_shift >> count) & mask_n_ones_from_right(high_index - low_index + 1)) << low_index);
     }
     pub fn is_negative(&self) -> bool {
         self.is_signed && self.buffer & mask_nth_bit(self.effective_bits - 1) != 0
