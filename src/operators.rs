@@ -284,6 +284,32 @@ pub fn operator_or(buffer: &mut Number, left: LeftOperandSource, right: RightOpe
     Ok((Historical, None))
 }
 
+pub fn operator_not(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+    match right {
+        RightOperandSource::DirectSource(_) => return Err("no second operand allowed!".to_owned()),
+        RightOperandSource::RangeSource(source_range) => {
+            match left {
+                LeftOperandSource::RangeSource(target_range) => {
+                    let bits = !buffer.get_bits(source_range);
+                    buffer.set_bits(target_range, bits);
+                },
+                LeftOperandSource::NamedAccessSource(_) => {},
+            }
+        }
+        RightOperandSource::NamedAccessSource(_) => {},
+        RightOperandSource::Empty => {
+            match left {
+                LeftOperandSource::RangeSource(target_range) => {
+                    let bits = !buffer.get_bits(target_range);
+                    buffer.set_bits(target_range, bits);
+                },
+                LeftOperandSource::NamedAccessSource(_) => {},
+            }
+        }
+    }
+    Ok((Historical, None))
+}
+
 pub fn operator_signed_shift_left(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
         RightOperandSource::DirectSource(mut second_operand) => {
@@ -550,7 +576,7 @@ pub fn operator_equals(buffer: &mut Number, left: LeftOperandSource, right: Righ
 
 pub fn operator_swap(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
-        RightOperandSource::DirectSource(mut second_operand) => return Err("cannot swap with rvalue!".to_owned()),
+        RightOperandSource::DirectSource(_) => return Err("cannot swap with rvalue!".to_owned()),
         RightOperandSource::RangeSource(source_range) => {
             match left {
                 LeftOperandSource::RangeSource(target_range) => {
@@ -565,5 +591,25 @@ pub fn operator_swap(buffer: &mut Number, left: LeftOperandSource, right: RightO
         RightOperandSource::NamedAccessSource(_) => {},
         RightOperandSource::Empty => return Err("no second operand!".to_owned())
     }
+    Ok((Historical, None))
+}
+
+pub fn operator_negate(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+    if let LeftOperandSource::NamedAccessSource(_) = left {
+        return Err("only [max:min] range is acceptable for negation.".to_owned());
+    }
+    if let LeftOperandSource::RangeSource(range) = left {
+        if let BitsIndex::HighestBit = range.0 {
+            if let BitsIndex::LowestBit = range.1 {} else {
+                return Err("right bound of range can be only lowest index.".to_owned());
+            }
+        } else {
+            return Err("left bound of range can be only highest index.".to_owned());
+        }
+    }
+    if let RightOperandSource::Empty = right {} else {
+        return Err("negation takes no second operand.".to_owned());
+    }
+    buffer.negate();
     Ok((Historical, None))
 }

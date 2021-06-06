@@ -161,6 +161,13 @@ impl Number {
         let low_index = self.resolve_bit_index(range.1);
         self.with_range_do_arithmetics(range, Box::new(move |a: u128| (a >> count) | (a << ((high_index - low_index + 1) - count))))
     }
+
+    pub fn negate(&mut self) {
+        self.is_signed = true;
+        let num = self.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit)) as i128;
+        self.buffer = (-num) as u128;
+        self.buffer = self.buffer & mask_n_ones_from_right(self.effective_bits);
+    }
     pub fn assign_value(&mut self, other: &Number) {
         // self.effective_bits must not be changed
         self.buffer = other.buffer;
@@ -208,6 +215,9 @@ impl Number {
         self.is_signed = signed;
         self.effective_bits = size;
         self.buffer = self.buffer & mask_n_ones_from_right(size);
+    }
+    pub fn number_type(&self) -> NumberType {
+        self.number_type
     }
     pub fn to_usize(&self) -> usize {
         self.buffer as usize

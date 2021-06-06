@@ -10,6 +10,7 @@ use crate::operators::operator_mod;
 use crate::operators::operator_xor;
 use crate::operators::operator_and;
 use crate::operators::operator_or;
+use crate::operators::operator_not;
 use crate::operators::operator_signed_shift_left;
 use crate::operators::operator_signed_shift_right;
 use crate::operators::operator_unsigned_shift_right;
@@ -22,6 +23,7 @@ use crate::operators::operator_greater;
 use crate::operators::operator_less;
 use crate::operators::operator_equals;
 use crate::operators::operator_swap;
+use crate::operators::operator_negate;
 use log::{info, trace, warn};
 use std::iter::FromIterator;
 
@@ -195,6 +197,8 @@ fn syntax_operator(it: ParsingIterator) -> (ParsingIterator, Option<Operator>) {
         Some('^') => (it.rewind(), Some(operator_xor as Operator)),
         Some('&') => (it.rewind(), Some(operator_and as Operator)),
         Some('|') => (it.rewind(), Some(operator_or as Operator)),
+        Some('~') => (it.rewind(), Some(operator_not as Operator)),
+        Some('!') => (it.rewind(), Some(operator_negate as Operator)),
         _ => (it, None)
     }
 }
