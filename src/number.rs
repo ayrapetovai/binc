@@ -92,47 +92,46 @@ impl Number {
         )
     }
 
-    fn with_range_do_arithmetics(&mut self, range: BitsIndexRange, operand: u128, arithmetic: fn(u128, u128) -> u128,) {
+    fn with_range_do_arithmetics(&mut self, range: BitsIndexRange, arithmetica: Box<dyn Fn(u128) -> u128>) {
         let high_order_bit_index = self.resolve_bit_index(range.0);
         let low_order_bit_index = self.resolve_bit_index(range.1);
         self.carry = false; // TODO
-        let mul = arithmetic(self.get_bits(range), operand);
+        let mul = arithmetica(self.get_bits(range));
         self.buffer = self.buffer & !mask_from_bit_to_bit(high_order_bit_index, low_order_bit_index);
         self.buffer = self.buffer | ((mul & mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1)) << low_order_bit_index);
         self.buffer = self.buffer & mask_n_ones_from_right(self.effective_bits);
     }
 
     pub fn range_add_bits(&mut self, range: BitsIndexRange, additive: u128) {
-        self.with_range_do_arithmetics(range, additive, |a: u128, b: u128| a.wrapping_add(b));
+        self.with_range_do_arithmetics(range, Box::new(move |a: u128| a.wrapping_add(additive)));
     }
 
     pub fn range_subtract_bits(&mut self, range: BitsIndexRange, subtractive: u128) {
-        self.with_range_do_arithmetics(range, subtractive, |a: u128, b: u128| a.wrapping_sub(b));
+        self.with_range_do_arithmetics(range, Box::new(move |a: u128| a.wrapping_sub(subtractive)));
     }
 
     pub fn range_multiply_bits(&mut self, range: BitsIndexRange, multiplayer: u128) {
-        self.with_range_do_arithmetics(range, multiplayer, |a: u128, b: u128| a.wrapping_mul(b));
+        self.with_range_do_arithmetics(range, Box::new(move |a: u128| a.wrapping_mul(multiplayer)));
     }
 
     pub fn range_div_bits(&mut self, range: BitsIndexRange, divisor: u128) {
-        self.with_range_do_arithmetics(range, divisor, |a: u128, b: u128| a.wrapping_div(b));
+        self.with_range_do_arithmetics(range, Box::new(move |a: u128| a.wrapping_div(divisor)));
     }
 
     pub fn range_mod_bits(&mut self, range: BitsIndexRange, divisor: u128) {
-        self.with_range_do_arithmetics(range, divisor, |a: u128, b: u128| a.wrapping_rem(b));
+        self.with_range_do_arithmetics(range, Box::new(move |a: u128| a.wrapping_rem(divisor)));
     }
     pub fn range_xor_bits(&mut self, range: BitsIndexRange, divisor: u128) {
-        self.with_range_do_arithmetics(range, divisor, |a: u128, b: u128| a ^ b);
+        self.with_range_do_arithmetics(range, Box::new(move |a: u128| a ^ divisor));
     }
     pub fn range_and_bits(&mut self, range: BitsIndexRange, divisor: u128) {
-        self.with_range_do_arithmetics(range, divisor, |a: u128, b: u128| a & b);
+        self.with_range_do_arithmetics(range, Box::new(move |a: u128| a & divisor));
     }
     pub fn range_or_bits(&mut self, range: BitsIndexRange, divisor: u128) {
-        self.with_range_do_arithmetics(range, divisor, |a: u128, b: u128| a | b);
+        self.with_range_do_arithmetics(range, Box::new(move |a: u128| a | divisor));
     }
     pub fn signed_shift_left(&mut self, range: BitsIndexRange, count: usize) {
-        self.with_range_do_arithmetics(range, count as u128, |a: u128, b: u128| a << b )
-        // cyclic: self.buffer = self.buffer | ((bits_to_shift << count | bits_to_shift >> (self.effective_bits - count)) << low_index);
+        self.with_range_do_arithmetics(range, Box::new(move |a: u128| a << count))
     }
     /// pools sign bit (leftmost to right)
     pub fn signed_shift_right(&mut self, range: BitsIndexRange, count: usize) {
@@ -149,7 +148,18 @@ impl Number {
     }
     /// prepends with zeroes (leftmost)
     pub fn unsigned_shift_right(&mut self, range: BitsIndexRange, count: usize) {
-        self.with_range_do_arithmetics(range, count as u128, |a: u128, b: u128| a >> b )
+        self.with_range_do_arithmetics(range, Box::new(move |a: u128| a >> count))
+    }
+
+    pub fn unsigned_cyclic_shift_left(&mut self, range: BitsIndexRange, count: usize) {
+        let high_index = self.resolve_bit_index(range.0);
+        let low_index = self.resolve_bit_index(range.1);
+        self.with_range_do_arithmetics(range, Box::new(move |a: u128| (a << count) | (a >> ((high_index - low_index + 1) - count))))
+    }
+    pub fn unsigned_cyclic_shift_right(&mut self, range: BitsIndexRange, count: usize) {
+        let high_index = self.resolve_bit_index(range.0);
+        let low_index = self.resolve_bit_index(range.1);
+        self.with_range_do_arithmetics(range, Box::new(move |a: u128| (a >> count) | (a << ((high_index - low_index + 1) - count))))
     }
     pub fn assign_value(&mut self, other: &Number) {
         // self.effective_bits must not be changed
