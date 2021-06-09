@@ -2,18 +2,22 @@
 mod syntax;
 mod number;
 mod operators;
+mod history;
 
 use number::{Number, NumberType};
 
-use log::{error, info, warn, trace};
+use log::{error, info, warn, trace, debug};
 use rustyline::config::Configurer;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 use syntax::parse;
 use operators::{HandlerResult};
 use crate::operators::OperationResult;
+use crate::operators::HandlerResult::Historical;
+use crate::history::History;
 use clap::{App, Arg};
 use colored::{Colorize, Color};
+use std::str::FromStr;
 
 fn print_ui(number: &Number) {
     let line = format!(
@@ -43,11 +47,17 @@ fn generate_executor(command: &str) -> Result<Box<Executor>, String> {
 }
 
 fn main() {
+    // TODO make struct with parameters https://github.com/clap-rs/clap
     let matches = App::new("binc")
         .arg(Arg::with_name("v")
             .short("v")
             .multiple(true)
-            .help("Sets the level of verbosity. More 'v's, more verbosity. Four 'v' used for the most verbose output"))
+            .help("Sets the level of verbosity. More 'v's, more verbosity. Four 'v' are used for the most verbose output"))
+        .arg(Arg::with_name("history")
+            .long("history")
+            .default_value("100")
+            .takes_value(true)
+            .help("Set the size of the command history"))
         .get_matches();
 
     let verbosity_level = match matches.occurrences_of("v") {
@@ -58,12 +68,26 @@ fn main() {
         }
     } as usize;
 
+    let history_size_raw = matches.value_of("history").unwrap();
+    let history_size = match usize::from_str(history_size_raw) {
+        Ok(s) => s,
+        Err(e) => {
+            println!("Consider key 'history', value '{}' for size cannot be parsed: {}", history_size_raw, e);
+            return;
+        }
+    };
+    debug!("History size {}", history_size);
+
     stderrlog::new().module(module_path!()).verbosity(verbosity_level).init().unwrap();
 
     // `()` can be used when no completer is required
     let mut cli_editor = Editor::<()>::new();
-    cli_editor.set_max_history_size(1000);
+    cli_editor.set_max_history_size(history_size);
+
     let mut main_buffer = Number::new(NumberType::Integer, true, 32).unwrap();
+    let mut buffer_history = History::new( history_size);
+    buffer_history.save(&main_buffer);
+
     loop {
         print_ui(&main_buffer);
         let input = cli_editor.readline("(binc) ");
@@ -84,8 +108,11 @@ fn main() {
                         Ok(executor) => {
                             match executor(&mut main_buffer) {
                                 Ok((handler_result, optional_message)) => {
-                                    if handler_result == HandlerResult::Historical {
-                                        // TODO add to undo/redo history
+                                    match handler_result {
+                                        HandlerResult::Historical => buffer_history.save(&main_buffer),
+                                        HandlerResult::Undo => main_buffer = buffer_history.backward(),
+                                        HandlerResult::Redo => main_buffer = buffer_history.forward(),
+                                        HandlerResult::Nonhistorical => {}
                                     }
                                     if let Some(message) = optional_message {
                                         println!("{}", message)

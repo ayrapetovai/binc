@@ -24,6 +24,8 @@ use crate::operators::operator_less;
 use crate::operators::operator_equals;
 use crate::operators::operator_swap;
 use crate::operators::operator_negate;
+use crate::operators::operator_undo;
+use crate::operators::operator_redo;
 use log::{info, trace, warn};
 use std::iter::FromIterator;
 
@@ -177,6 +179,8 @@ fn syntax_operator(it: ParsingIterator) -> (ParsingIterator, Option<Operator>) {
         Some('u') if it.match_from_current("unsigned") => (it.rewind_n(8), Some(operator_unsigned as Operator)),
         Some('s') if it.match_from_current("signed") => (it.rewind_n(6), Some(operator_signed as Operator)),
         Some('h') if it.match_from_current("help") => (it.rewind_n(4), Some(operator_show_help as Operator)),
+        Some('u') if it.match_from_current("undo") => (it.rewind_n(4), Some(operator_undo as Operator)),
+        Some('r') if it.match_from_current("redo") => (it.rewind_n(4), Some(operator_redo as Operator)),
         Some('i') if it.match_from_current("int") => (it.rewind_n(3), Some(operator_int_bits_width as Operator)),
         Some('~') if it.match_from_current("~>>") => (it.rewind_n(3), Some(operator_unsigned_cyclic_shift_right as Operator)),
         Some('<') if it.match_from_current("<<~") => (it.rewind_n(3), Some(operator_unsigned_cyclic_shift_left as Operator)),

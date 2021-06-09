@@ -20,9 +20,11 @@ pub enum NumberType {
     Fixed,
 }
 
+// TODO user struct BitUint from crate 'num-bigint'
 type BufferType = u128;
 
-#[derive(Debug)]
+// TODO implement std::str::FromStr
+#[derive(Debug, Clone)]
 pub struct Number {
     buffer: BufferType, // only right "effective_bits" are used
     effective_bits: usize,
@@ -54,6 +56,7 @@ impl Number {
         if is_negative {
             it.next();
         }
+        // TODO use u128::from_str_radix() or BigUint::from_str_radix(...)
         let mut buffer = 0u128;
         while let Some(c) = it.next() {
             let n = match c {
@@ -170,10 +173,11 @@ impl Number {
     }
     pub fn assign_value(&mut self, other: &Number) {
         // self.effective_bits must not be changed
+        self.effective_bits = self.effective_bits;
         self.buffer = other.buffer;
         self.number_type = other.number_type;
         self.is_signed = other.is_signed;
-        self.carry = false;
+        self.carry = other.carry;
     }
 
     fn resolve_bit_index(&self, bi: BitsIndex) -> usize {

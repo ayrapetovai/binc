@@ -8,10 +8,14 @@ pub type OperationResult = Result<(HandlerResult, Option<String>), String>;
 #[derive(PartialEq)]
 pub enum HandlerResult {
     Historical,
-    Nonhistorical
+    Nonhistorical,
+    Undo,
+    Redo
 }
 use HandlerResult::Nonhistorical;
 use HandlerResult::Historical;
+use HandlerResult::Undo;
+use HandlerResult::Redo;
 
 pub type Operator = fn(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult;
 
@@ -19,7 +23,6 @@ pub type Operator = fn(buffer: &mut Number, left: LeftOperandSource, right: Righ
 pub fn operator_show_help(_: &mut Number, _: LeftOperandSource, _: RightOperandSource) -> OperationResult {
     let mut buffer = String::with_capacity(400);
 
-    // buffer.push_str(format!("{}", "X operator Y:".color(Color::BrightGreen)).as_str());
     buffer.push_str(&"X operator Y:".color(Color::BrightGreen).to_string());
     buffer.push_str(" >> << + - >>> * / % > < ^ & | <<~ ~>> == = <> pow sqrt count\r\n");
 
@@ -33,7 +36,7 @@ pub fn operator_show_help(_: &mut Number, _: LeftOperandSource, _: RightOperandS
     buffer.push_str(" 1 3.14 -0; -inf +inf NaN eps; 'a'\r\n");
 
     buffer.push_str(&"commands:".color(Color::BrightGreen).to_string());
-    buffer.push_str(" intX floatX fixedX printf signed unsigned history undo redo about ?");
+    buffer.push_str(" intX floatX fixedX printf signed unsigned undo redo about ?");
 
     Ok((Nonhistorical, Some(buffer)))
 }
@@ -613,3 +616,12 @@ pub fn operator_negate(buffer: &mut Number, left: LeftOperandSource, right: Righ
     buffer.negate();
     Ok((Historical, None))
 }
+
+pub fn operator_undo(_: &mut Number, _: LeftOperandSource, _: RightOperandSource) -> OperationResult {
+    Ok((Undo, None))
+}
+
+pub fn operator_redo(_: &mut Number, _: LeftOperandSource, _: RightOperandSource) -> OperationResult {
+    Ok((Redo, None))
+}
+
