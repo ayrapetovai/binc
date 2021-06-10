@@ -24,10 +24,10 @@ pub fn operator_show_help(_: &mut Number, _: LeftOperandSource, _: RightOperandS
     let mut buffer = String::with_capacity(400);
 
     buffer.push_str(&"X operator Y:".color(Color::BrightGreen).to_string());
-    buffer.push_str(" >> << + - >>> * / % > < ^ & | <<~ ~>> == = <> pow root count\r\n");
+    buffer.push_str(" >> << + - >>> * / % > < ^ & | <<~ ~>> == = <> pow root cnt\r\n");
 
     buffer.push_str(&"operator X:".color(Color::BrightGreen).to_string());
-    buffer.push_str(" ! ~ random shuffle reverse\r\n");
+    buffer.push_str(" ! ~ rand shuf rev\r\n");
 
     buffer.push_str(&"X and Y can be:".color(Color::BrightGreen).to_string());
     buffer.push_str(" [] [i] [:] [i:] [:j] [i:j] c; e f\r\n");
@@ -384,7 +384,7 @@ pub fn operator_not(buffer: &mut Number, left: LeftOperandSource, right: RightOp
 pub fn operator_signed_shift_left(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     trace!("operator_signed_shift_left: {:?} {:?} {:?}", buffer, left, right);
     match right {
-        RightOperandSource::DirectSource(mut second_operand) => {
+        RightOperandSource::DirectSource(second_operand) => {
             match left {
                 LeftOperandSource::RangeSource(target_range) => {
                     buffer.signed_shift_left(target_range, second_operand.to_usize());
@@ -417,7 +417,7 @@ pub fn operator_signed_shift_left(buffer: &mut Number, left: LeftOperandSource, 
 pub fn operator_signed_shift_right(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     trace!("operator_signed_shift_right: {:?} {:?} {:?}", buffer, left, right);
     match right {
-        RightOperandSource::DirectSource(mut second_operand) => {
+        RightOperandSource::DirectSource(second_operand) => {
             match left {
                 LeftOperandSource::RangeSource(target_range) => {
                     trace!("operator_signed_shift_right: {:?} {}", target_range, second_operand.to_usize());
@@ -452,7 +452,7 @@ pub fn operator_signed_shift_right(buffer: &mut Number, left: LeftOperandSource,
 
 pub fn operator_unsigned_shift_right(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
-        RightOperandSource::DirectSource(mut second_operand) => {
+        RightOperandSource::DirectSource(second_operand) => {
             match left {
                 LeftOperandSource::RangeSource(target_range) => {
                     buffer.unsigned_shift_right(target_range, second_operand.to_usize());
@@ -484,7 +484,7 @@ pub fn operator_unsigned_shift_right(buffer: &mut Number, left: LeftOperandSourc
 
 pub fn operator_unsigned_cyclic_shift_right(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
-        RightOperandSource::DirectSource(mut second_operand) => {
+        RightOperandSource::DirectSource(second_operand) => {
             match left {
                 LeftOperandSource::RangeSource(target_range) => {
                     buffer.unsigned_cyclic_shift_right(target_range, second_operand.to_usize());
@@ -516,7 +516,7 @@ pub fn operator_unsigned_cyclic_shift_right(buffer: &mut Number, left: LeftOpera
 
 pub fn operator_unsigned_cyclic_shift_left(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
-        RightOperandSource::DirectSource(mut second_operand) => {
+        RightOperandSource::DirectSource(second_operand) => {
             match left {
                 LeftOperandSource::RangeSource(target_range) => {
                     buffer.unsigned_cyclic_shift_left(target_range, second_operand.to_usize());
@@ -558,7 +558,7 @@ pub fn operator_int_bits_width(buffer: &mut Number, _: LeftOperandSource, right:
 
 pub fn operator_count(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
-        RightOperandSource::DirectSource(mut second_operand) => {
+        RightOperandSource::DirectSource(second_operand) => {
             match left {
                 LeftOperandSource::RangeSource(target_range) => {
                     let count = match second_operand.to_u128() {
@@ -599,7 +599,7 @@ pub fn operator_unsigned(buffer: &mut Number, _: LeftOperandSource, _: RightOper
 
 pub fn operator_greater(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
-        RightOperandSource::DirectSource(mut second_operand) => {
+        RightOperandSource::DirectSource(second_operand) => {
             match left {
                 LeftOperandSource::RangeSource(target_range) => {
                     let bits_second_op = second_operand.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
@@ -627,7 +627,7 @@ pub fn operator_greater(buffer: &mut Number, left: LeftOperandSource, right: Rig
 
 pub fn operator_less(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
-        RightOperandSource::DirectSource(mut second_operand) => {
+        RightOperandSource::DirectSource(second_operand) => {
             match left {
                 LeftOperandSource::RangeSource(target_range) => {
                     let bits_second_op = second_operand.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
@@ -655,7 +655,7 @@ pub fn operator_less(buffer: &mut Number, left: LeftOperandSource, right: RightO
 
 pub fn operator_equals(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
-        RightOperandSource::DirectSource(mut second_operand) => {
+        RightOperandSource::DirectSource(second_operand) => {
             match left {
                 LeftOperandSource::RangeSource(target_range) => {
                     let bits_second_op = second_operand.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));

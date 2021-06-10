@@ -29,7 +29,7 @@ use crate::operators::operator_swap;
 use crate::operators::operator_negate;
 use crate::operators::operator_undo;
 use crate::operators::operator_redo;
-use log::{info, trace, warn};
+use log::trace;
 use std::iter::FromIterator;
 
 #[derive(Debug)]
@@ -183,11 +183,11 @@ fn syntax_operator(it: ParsingIterator) -> (ParsingIterator, Option<Operator>) {
     match it.current() {
         Some('u') if it.match_from_current("unsigned") => (it.rewind_n(8), Some(operator_unsigned as Operator)),
         Some('s') if it.match_from_current("signed") => (it.rewind_n(6), Some(operator_signed as Operator)),
-        Some('c') if it.match_from_current("count") => (it.rewind_n(5), Some(operator_count as Operator)),
         Some('h') if it.match_from_current("help") => (it.rewind_n(4), Some(operator_show_help as Operator)),
         Some('u') if it.match_from_current("undo") => (it.rewind_n(4), Some(operator_undo as Operator)),
         Some('r') if it.match_from_current("redo") => (it.rewind_n(4), Some(operator_redo as Operator)),
         Some('r') if it.match_from_current("root") => (it.rewind_n(4), Some(operator_root as Operator)),
+        Some('c') if it.match_from_current("cnt") => (it.rewind_n(3), Some(operator_count as Operator)),
         Some('i') if it.match_from_current("int") => (it.rewind_n(3), Some(operator_int_bits_width as Operator)),
         Some('p') if it.match_from_current("pow") => (it.rewind_n(3), Some(operator_pow as Operator)),
         Some('~') if it.match_from_current("~>>") => (it.rewind_n(3), Some(operator_unsigned_cyclic_shift_right as Operator)),
@@ -411,7 +411,7 @@ fn parsing_iterator_skip_whitespaces() {
         assert_ne!(' ', c);
         assert_ne!('\t', c);
     }
-    let mut it = ParsingIterator::from(" 12\t 3abc").unwrap();
+    let it = ParsingIterator::from(" 12\t 3abc").unwrap();
     let it = it.rewind_n(3);
     assert_eq!(6, it.offset);
     assert!(it.match_from_current("abc"));

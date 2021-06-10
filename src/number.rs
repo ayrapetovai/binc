@@ -2,7 +2,6 @@ use std::fmt::{Display, Formatter};
 use log::trace;
 use std::mem::size_of;
 use colored::{Colorize, Color};
-use crate::number::NumberType::Integer;
 
 #[derive(Debug, Copy, Clone)]
 pub enum BitsIndex {
@@ -184,11 +183,11 @@ impl Number {
         self.with_range_do_arithmetics(range, Box::new(move |a: u128| (a >> count) | (a << ((high_index - low_index + 1) - count))))
     }
 
-    pub fn range_count_bits(&mut self, range: BitsIndexRange, oneOrZero: u8) -> usize {
+    pub fn range_count_bits(&mut self, range: BitsIndexRange, one_or_zero: u8) -> usize {
         let high_index = self.resolve_bit_index(range.0);
         let low_index = self.resolve_bit_index(range.1);
         let bits = self.get_bits(range);
-        return match oneOrZero {
+        return match one_or_zero {
             0 => (bits | mask_from_bit_to_bit(127, high_index + 1 - low_index)).count_zeros() as usize,
             1 => (bits & mask_n_ones_from_right(high_index + 1 - low_index)).count_ones() as usize,
             _ => usize::MAX
@@ -229,7 +228,7 @@ impl Number {
         trace!("Number::set_bits: range {:?}, source {:b}", range, source_bits);
         let high_index = self.resolve_bit_index(range.0);
         let low_index = self.resolve_bit_index(range.1);
-        self.buffer = (self.buffer & !mask_from_bit_to_bit(high_index, low_index)) | ((source_bits & mask_n_ones_from_right((high_index - low_index + 1))) << low_index)
+        self.buffer = (self.buffer & !mask_from_bit_to_bit(high_index, low_index)) | ((source_bits & mask_n_ones_from_right(high_index - low_index + 1)) << low_index)
     }
 
     pub fn max_size(&self) -> usize {
@@ -249,9 +248,6 @@ impl Number {
         self.is_signed = signed;
         self.effective_bits = size;
         self.buffer = self.buffer & mask_n_ones_from_right(size);
-    }
-    pub fn number_type(&self) -> NumberType {
-        self.number_type
     }
     pub fn to_usize(&self) -> usize {
         self.buffer as usize
@@ -310,7 +306,7 @@ fn mask_n_ones_from_right(n: usize) -> u128 {
 }
 
 fn mask_from_bit_to_bit(high_inclusive: usize, low: usize) -> u128 {
-    mask_n_ones_from_right((high_inclusive + 1 - low)) << low
+    mask_n_ones_from_right(high_inclusive + 1 - low) << low
 }
 
 const NUMBER_OF_CONVEX_DELTAHEDRON: i32 = 8;

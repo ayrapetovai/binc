@@ -6,14 +6,13 @@ mod history;
 
 use number::{Number, NumberType};
 
-use log::{error, info, warn, trace, debug};
+use log::{error, trace, debug};
 use rustyline::config::Configurer;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 use syntax::parse;
 use operators::{HandlerResult};
 use crate::operators::OperationResult;
-use crate::operators::HandlerResult::Historical;
 use crate::history::History;
 use clap::{App, Arg};
 use colored::{Colorize, Color};
