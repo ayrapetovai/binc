@@ -391,7 +391,7 @@ fn parsing_iterator_skip_whitespaces() {
     assert_eq!(None, it.next());
 
     let mut it = ParsingIterator::from(" 12\t 3  ").unwrap();
-    assert!(it.match_from_current("123"));
+    assert!(!it.match_from_current("123"));
 
     while let Some(c) = it.current() {
         assert_ne!(' ', c);
