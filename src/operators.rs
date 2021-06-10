@@ -24,7 +24,7 @@ pub fn operator_show_help(_: &mut Number, _: LeftOperandSource, _: RightOperandS
     let mut buffer = String::with_capacity(400);
 
     buffer.push_str(&"X operator Y:".color(Color::BrightGreen).to_string());
-    buffer.push_str(" >> << + - >>> * / % > < ^ & | <<~ ~>> == = <> pow sqrt count\r\n");
+    buffer.push_str(" >> << + - >>> * / % > < ^ & | <<~ ~>> == = <> pow root count\r\n");
 
     buffer.push_str(&"operator X:".color(Color::BrightGreen).to_string());
     buffer.push_str(" ! ~ random shuffle reverse\r\n");
@@ -202,6 +202,74 @@ pub fn operator_mod(buffer: &mut Number, left: LeftOperandSource, right: RightOp
         }
         RightOperandSource::NamedAccessSource(_) => {},
         RightOperandSource::Empty => return Err("no second operand!".to_owned())
+    }
+    Ok((Historical, None))
+}
+
+pub fn operator_pow(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+    match right {
+        RightOperandSource::DirectSource(mut second_operand) => {
+            second_operand.signed_extend_to(buffer.max_size());
+            match left {
+                LeftOperandSource::RangeSource(target_range) => {
+                    let bits = second_operand.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
+                    buffer.range_pow_bits(target_range, bits);
+                },
+                LeftOperandSource::NamedAccessSource(_) => {},
+            }
+        }
+        RightOperandSource::RangeSource(source_range) => {
+            match left {
+                LeftOperandSource::RangeSource(target_range) => {
+                    let bits = buffer.get_bits(source_range);
+                    buffer.range_pow_bits(target_range, bits);
+                },
+                LeftOperandSource::NamedAccessSource(_) => {},
+            }
+        }
+        RightOperandSource::NamedAccessSource(_) => {},
+        RightOperandSource::Empty => {
+            match left {
+                LeftOperandSource::RangeSource(target_range) => {
+                    buffer.range_pow_bits(target_range, 2);
+                },
+                LeftOperandSource::NamedAccessSource(_) => {},
+            }
+        }
+    }
+    Ok((Historical, None))
+}
+
+pub fn operator_root(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+    match right {
+        RightOperandSource::DirectSource(mut second_operand) => {
+            second_operand.signed_extend_to(buffer.max_size());
+            match left {
+                LeftOperandSource::RangeSource(target_range) => {
+                    let bits = second_operand.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
+                    buffer.range_root_bits(target_range, bits);
+                },
+                LeftOperandSource::NamedAccessSource(_) => {},
+            }
+        }
+        RightOperandSource::RangeSource(source_range) => {
+            match left {
+                LeftOperandSource::RangeSource(target_range) => {
+                    let bits = buffer.get_bits(source_range);
+                    buffer.range_root_bits(target_range, bits);
+                },
+                LeftOperandSource::NamedAccessSource(_) => {},
+            }
+        }
+        RightOperandSource::NamedAccessSource(_) => {},
+        RightOperandSource::Empty => {
+            match left {
+                LeftOperandSource::RangeSource(target_range) => {
+                    buffer.range_root_bits(target_range, 2);
+                },
+                LeftOperandSource::NamedAccessSource(_) => {},
+            }
+        }
     }
     Ok((Historical, None))
 }
@@ -486,6 +554,37 @@ pub fn operator_int_bits_width(buffer: &mut Number, _: LeftOperandSource, right:
         }
         _ => return Err("Bit width is necessary argument".to_owned())
     }
+}
+
+pub fn operator_count(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+    match right {
+        RightOperandSource::DirectSource(mut second_operand) => {
+            match left {
+                LeftOperandSource::RangeSource(target_range) => {
+                    let count = match second_operand.to_u128() {
+                        0 => buffer.range_count_bits(target_range, 0),
+                        1 => buffer.range_count_bits(target_range, 1),
+                        _ => return Err("count only 1 and 0".to_owned())
+                    };
+                    return Ok((Nonhistorical, Some(count.to_string())));
+                }
+                _ => todo!("not yet implemented for float and fixed")
+            }
+        }
+        RightOperandSource::RangeSource(_) => {
+            return Err("count does not read range, specify 1 or 0".to_owned());
+        }
+        RightOperandSource::NamedAccessSource(_) => {},
+        RightOperandSource::Empty => {
+            match left {
+                LeftOperandSource::RangeSource(target_range) => {
+                    return Ok((Nonhistorical, Some(buffer.range_count_bits(target_range, 1).to_string())));
+                },
+                LeftOperandSource::NamedAccessSource(_) => {},
+            }
+        }
+    }
+    Ok((Historical, None))
 }
 
 pub fn operator_signed(buffer: &mut Number, _: LeftOperandSource, _: RightOperandSource) -> OperationResult {

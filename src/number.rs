@@ -2,6 +2,7 @@ use std::fmt::{Display, Formatter};
 use log::trace;
 use std::mem::size_of;
 use colored::{Colorize, Color};
+use crate::number::NumberType::Integer;
 
 #[derive(Debug, Copy, Clone)]
 pub enum BitsIndex {
@@ -121,6 +122,24 @@ impl Number {
         self.with_range_do_arithmetics(range, Box::new(move |a: u128| a.wrapping_div(divisor)));
     }
 
+    pub fn range_pow_bits(&mut self, range: BitsIndexRange, magnitude: u128) {
+        self.with_range_do_arithmetics(range, Box::new(move |a: u128| a.wrapping_pow(magnitude as u32)));
+    }
+
+    /// Find the number X, which powered to N is A.
+    /// x^n = a;
+    /// ln(x^n) = ln(a);
+    /// n*ln(x) = ln(a);
+    /// ln(x) = ln(a)/n;
+    /// exp(ln(x)) = exp(ln(a)/n);
+    /// x = exp(ln(a)/n);
+    pub fn range_root_bits(&mut self, range: BitsIndexRange, power: u128) {
+        match self.number_type {
+            NumberType::Integer => self.with_range_do_arithmetics(range, Box::new(move |a: u128| ((a as f64).ln() / power as f64).exp() as u128)),
+            _ => todo!("root operation for float and fixed is not implemented")
+        }
+    }
+
     pub fn range_mod_bits(&mut self, range: BitsIndexRange, divisor: u128) {
         self.with_range_do_arithmetics(range, Box::new(move |a: u128| a.wrapping_rem(divisor)));
     }
@@ -163,6 +182,17 @@ impl Number {
         let high_index = self.resolve_bit_index(range.0);
         let low_index = self.resolve_bit_index(range.1);
         self.with_range_do_arithmetics(range, Box::new(move |a: u128| (a >> count) | (a << ((high_index - low_index + 1) - count))))
+    }
+
+    pub fn range_count_bits(&mut self, range: BitsIndexRange, oneOrZero: u8) -> usize {
+        let high_index = self.resolve_bit_index(range.0);
+        let low_index = self.resolve_bit_index(range.1);
+        let bits = self.get_bits(range);
+        return match oneOrZero {
+            0 => (bits | mask_from_bit_to_bit(127, high_index + 1 - low_index)).count_zeros() as usize,
+            1 => (bits & mask_n_ones_from_right(high_index + 1 - low_index)).count_ones() as usize,
+            _ => usize::MAX
+        }
     }
 
     pub fn negate(&mut self) {

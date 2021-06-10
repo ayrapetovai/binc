@@ -7,6 +7,8 @@ use crate::operators::operator_sub;
 use crate::operators::operator_mul;
 use crate::operators::operator_div;
 use crate::operators::operator_mod;
+use crate::operators::operator_pow;
+use crate::operators::operator_root;
 use crate::operators::operator_xor;
 use crate::operators::operator_and;
 use crate::operators::operator_or;
@@ -17,6 +19,7 @@ use crate::operators::operator_unsigned_shift_right;
 use crate::operators::operator_unsigned_cyclic_shift_right;
 use crate::operators::operator_unsigned_cyclic_shift_left;
 use crate::operators::operator_int_bits_width;
+use crate::operators::operator_count;
 use crate::operators::operator_signed;
 use crate::operators::operator_unsigned;
 use crate::operators::operator_greater;
@@ -180,10 +183,13 @@ fn syntax_operator(it: ParsingIterator) -> (ParsingIterator, Option<Operator>) {
     match it.current() {
         Some('u') if it.match_from_current("unsigned") => (it.rewind_n(8), Some(operator_unsigned as Operator)),
         Some('s') if it.match_from_current("signed") => (it.rewind_n(6), Some(operator_signed as Operator)),
+        Some('c') if it.match_from_current("count") => (it.rewind_n(5), Some(operator_count as Operator)),
         Some('h') if it.match_from_current("help") => (it.rewind_n(4), Some(operator_show_help as Operator)),
         Some('u') if it.match_from_current("undo") => (it.rewind_n(4), Some(operator_undo as Operator)),
         Some('r') if it.match_from_current("redo") => (it.rewind_n(4), Some(operator_redo as Operator)),
+        Some('r') if it.match_from_current("root") => (it.rewind_n(4), Some(operator_root as Operator)),
         Some('i') if it.match_from_current("int") => (it.rewind_n(3), Some(operator_int_bits_width as Operator)),
+        Some('p') if it.match_from_current("pow") => (it.rewind_n(3), Some(operator_pow as Operator)),
         Some('~') if it.match_from_current("~>>") => (it.rewind_n(3), Some(operator_unsigned_cyclic_shift_right as Operator)),
         Some('<') if it.match_from_current("<<~") => (it.rewind_n(3), Some(operator_unsigned_cyclic_shift_left as Operator)),
         Some('>') if it.match_from_current(">>>") => (it.rewind_n(3), Some(operator_unsigned_shift_right as Operator)),
