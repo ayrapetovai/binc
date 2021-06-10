@@ -314,6 +314,7 @@ pub fn operator_not(buffer: &mut Number, left: LeftOperandSource, right: RightOp
 }
 
 pub fn operator_signed_shift_left(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+    trace!("operator_signed_shift_left: {:?} {:?} {:?}", buffer, left, right);
     match right {
         RightOperandSource::DirectSource(mut second_operand) => {
             match left {
@@ -346,10 +347,12 @@ pub fn operator_signed_shift_left(buffer: &mut Number, left: LeftOperandSource, 
 }
 
 pub fn operator_signed_shift_right(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+    trace!("operator_signed_shift_right: {:?} {:?} {:?}", buffer, left, right);
     match right {
         RightOperandSource::DirectSource(mut second_operand) => {
             match left {
                 LeftOperandSource::RangeSource(target_range) => {
+                    trace!("operator_signed_shift_right: {:?} {}", target_range, second_operand.to_usize());
                     buffer.signed_shift_right(target_range, second_operand.to_usize());
                 },
                 LeftOperandSource::NamedAccessSource(_) => {},
@@ -359,6 +362,7 @@ pub fn operator_signed_shift_right(buffer: &mut Number, left: LeftOperandSource,
             match left {
                 LeftOperandSource::RangeSource(target_range) => {
                     let count = buffer.get_bits(source_range) as usize;
+                    trace!("operator_signed_shift_right: {:?} {:?}, count {}", target_range, source_range, count);
                     buffer.signed_shift_right(target_range, count);
                 },
                 LeftOperandSource::NamedAccessSource(_) => {},
@@ -368,6 +372,7 @@ pub fn operator_signed_shift_right(buffer: &mut Number, left: LeftOperandSource,
         RightOperandSource::Empty => {
             match left {
                 LeftOperandSource::RangeSource(target_range) => {
+                    trace!("operator_signed_shift_right: {:?} shit one", target_range);
                     buffer.signed_shift_right(target_range, 1);
                 },
                 LeftOperandSource::NamedAccessSource(_) => {},

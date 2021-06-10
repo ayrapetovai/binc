@@ -76,12 +76,12 @@ impl ParsingIterator {
     pub fn match_from_current(&self, sequence: &str) -> bool {
         let bytes: Vec<char> = sequence.chars().collect();
         for i in 0..sequence.len() {
-            if self.offset + i >= self.source.len() || self.source[self.offset + i] != bytes[i] &&
-                !(self.source[self.offset + i]).is_whitespace()
-            {
+            if self.offset + i >= self.source.len() || self.source[self.offset + i] != bytes[i] {
+                trace!("match_from_current: no match");
                 return false
             }
         }
+        trace!("match_from_current: {}", sequence);
         true
     }
     pub fn next(&mut self) -> Option<char> {
@@ -153,6 +153,7 @@ fn syntax_range(it: ParsingIterator) -> (ParsingIterator, BitsIndexRange) {
 }
 
 fn syntax_accessor(it: ParsingIterator) -> Result<(ParsingIterator, Option<BitsIndexRange>), String> {
+    trace!("syntax_accessor: {:?}", it.current());
     match it.current() {
         Some(c) => match c {
             '[' => {
@@ -175,6 +176,7 @@ fn syntax_accessor(it: ParsingIterator) -> Result<(ParsingIterator, Option<BitsI
 }
 
 fn syntax_operator(it: ParsingIterator) -> (ParsingIterator, Option<Operator>) {
+    trace!("syntax_operator: rest {:?}", it.rest());
     match it.current() {
         Some('u') if it.match_from_current("unsigned") => (it.rewind_n(8), Some(operator_unsigned as Operator)),
         Some('s') if it.match_from_current("signed") => (it.rewind_n(6), Some(operator_signed as Operator)),
@@ -372,6 +374,10 @@ fn parsing_iterator_match_from_current() {
     assert_eq!(None, it.current());
     assert!(!it.match_from_current("c"));
     assert!(!it.match_from_current("abc"));
+
+    let it = ParsingIterator::from(">> 2").unwrap();
+    assert!(it.match_from_current(">>"));
+    assert!(!it.match_from_current(">>>"));
 }
 
 #[test]

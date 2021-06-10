@@ -48,6 +48,7 @@ fn generate_executor(command: &str) -> Result<Box<Executor>, String> {
 
 fn main() {
     // TODO make struct with parameters https://github.com/clap-rs/clap
+    // TODO make a cli.yml (https://docs.rs/clap/2.33.3/clap/), and use it like this: let yaml = load_yaml!("cli.yml"); let matches = App::from_yaml(yaml).get_matches();
     let matches = App::new("binc")
         .arg(Arg::with_name("v")
             .short("v")
@@ -93,7 +94,7 @@ fn main() {
         let input = cli_editor.readline("(binc) ");
         match input {
             Ok(commands) => {
-                trace!("main loop: got commands: '{}'", commands);
+                trace!("main: got commands: '{}'", commands);
                 let command_list = commands.split(";").collect::<Vec<_>>();
                 for mut command in command_list {
                     if command.is_empty() {
@@ -120,7 +121,7 @@ fn main() {
                                 }
                                 Err(err_msg) => println!("operation error: {}", err_msg)
                             }
-                            trace!("BUFFER: signed {}, size {}, {:b} ", main_buffer.signed(), main_buffer.max_size(), main_buffer.to_u128());
+                            trace!("buffer: {}, size {}, bits 0b{:b} ", main_buffer.signed(), main_buffer.max_size(), main_buffer.to_u128());
                         }
                         Err(err_msg) => println!("parsing error: {}", err_msg)
                     }

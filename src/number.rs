@@ -124,14 +124,14 @@ impl Number {
     pub fn range_mod_bits(&mut self, range: BitsIndexRange, divisor: u128) {
         self.with_range_do_arithmetics(range, Box::new(move |a: u128| a.wrapping_rem(divisor)));
     }
-    pub fn range_xor_bits(&mut self, range: BitsIndexRange, divisor: u128) {
-        self.with_range_do_arithmetics(range, Box::new(move |a: u128| a ^ divisor));
+    pub fn range_xor_bits(&mut self, range: BitsIndexRange, second_operand: u128) {
+        self.with_range_do_arithmetics(range, Box::new(move |a: u128| a ^ second_operand));
     }
-    pub fn range_and_bits(&mut self, range: BitsIndexRange, divisor: u128) {
-        self.with_range_do_arithmetics(range, Box::new(move |a: u128| a & divisor));
+    pub fn range_and_bits(&mut self, range: BitsIndexRange, second_operand: u128) {
+        self.with_range_do_arithmetics(range, Box::new(move |a: u128| a & second_operand));
     }
-    pub fn range_or_bits(&mut self, range: BitsIndexRange, divisor: u128) {
-        self.with_range_do_arithmetics(range, Box::new(move |a: u128| a | divisor));
+    pub fn range_or_bits(&mut self, range: BitsIndexRange, second_operand: u128) {
+        self.with_range_do_arithmetics(range, Box::new(move |a: u128| a | second_operand));
     }
     pub fn signed_shift_left(&mut self, range: BitsIndexRange, count: usize) {
         self.with_range_do_arithmetics(range, Box::new(move |a: u128| a << count))
