@@ -13,6 +13,9 @@ use crate::operators::operator_xor;
 use crate::operators::operator_and;
 use crate::operators::operator_or;
 use crate::operators::operator_not;
+use crate::operators::operator_reverse;
+use crate::operators::operator_random;
+use crate::operators::operator_shuffle;
 use crate::operators::operator_signed_shift_left;
 use crate::operators::operator_signed_shift_right;
 use crate::operators::operator_unsigned_shift_right;
@@ -187,6 +190,9 @@ fn syntax_operator(it: ParsingIterator) -> (ParsingIterator, Option<Operator>) {
         Some('u') if it.match_from_current("undo") => (it.rewind_n(4), Some(operator_undo as Operator)),
         Some('r') if it.match_from_current("redo") => (it.rewind_n(4), Some(operator_redo as Operator)),
         Some('r') if it.match_from_current("root") => (it.rewind_n(4), Some(operator_root as Operator)),
+        Some('r') if it.match_from_current("rnd") => (it.rewind_n(3), Some(operator_random as Operator)),
+        Some('s') if it.match_from_current("shf") => (it.rewind_n(3), Some(operator_shuffle as Operator)),
+        Some('r') if it.match_from_current("rev") => (it.rewind_n(3), Some(operator_reverse as Operator)),
         Some('c') if it.match_from_current("cnt") => (it.rewind_n(3), Some(operator_count as Operator)),
         Some('i') if it.match_from_current("int") => (it.rewind_n(3), Some(operator_int_bits_width as Operator)),
         Some('p') if it.match_from_current("pow") => (it.rewind_n(3), Some(operator_pow as Operator)),

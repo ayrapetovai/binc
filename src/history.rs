@@ -17,7 +17,6 @@ impl History {
         }
     }
 
-    // FIXME interior mutability?
     pub fn save(&mut self, number: &Number) {
         if self.backward_list.len() + 1 > self.max_size {
             self.backward_list.pop_front();
@@ -26,7 +25,6 @@ impl History {
         if !self.forward_list.is_empty() {
             self.forward_list.clear();
         }
-
     }
 
     pub fn backward(&mut self) -> Number {

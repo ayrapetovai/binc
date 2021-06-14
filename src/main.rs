@@ -9,7 +9,7 @@ use number::{Number, NumberType};
 use log::{error, trace, debug};
 use rustyline::config::Configurer;
 use rustyline::error::ReadlineError;
-use rustyline::Editor;
+use rustyline::{Editor, Event, Cmd, KeyEvent, EventHandler};
 use syntax::parse;
 use operators::{HandlerResult};
 use crate::operators::OperationResult;
@@ -17,6 +17,9 @@ use crate::history::History;
 use clap::{App, Arg};
 use colored::{Colorize, Color};
 use std::str::FromStr;
+use smallvec::{smallvec, SmallVec};
+use std::rc::Rc;
+use std::cell::{RefCell, Cell};
 
 fn print_ui(number: &Number) {
     let line = format!(
@@ -87,6 +90,9 @@ fn main() {
     let mut main_buffer = Number::new(NumberType::Integer, true, 32).unwrap();
     let mut buffer_history = History::new( history_size);
     buffer_history.save(&main_buffer);
+
+    // SHIFT+LEFT/SHIFT+RIGHT - undo/redo
+    cli_editor.bind_sequence(Event::KeySeq(smallvec![KeyEvent::ctrl('Q')]), EventHandler::from(Cmd::EndOfFile));
 
     loop {
         print_ui(&main_buffer);

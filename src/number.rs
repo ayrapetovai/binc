@@ -2,6 +2,8 @@ use std::fmt::{Display, Formatter};
 use log::trace;
 use std::mem::size_of;
 use colored::{Colorize, Color};
+use rand::{random, Rng};
+use rand::prelude::SliceRandom;
 
 #[derive(Debug, Copy, Clone)]
 pub enum BitsIndex {
@@ -194,19 +196,39 @@ impl Number {
         }
     }
 
+    pub fn range_reverse_bits(&mut self, range: BitsIndexRange) {
+        let high_index = self.resolve_bit_index(range.0);
+        let low_index = self.resolve_bit_index(range.1);
+        self.with_range_do_arithmetics(range, Box::new(move |a: u128| a.reverse_bits() >> (size_of::<BufferType>()*8 - (high_index + 1 - low_index))))
+    }
+
+    pub fn range_shuffle_bits(&mut self, range: BitsIndexRange) {
+        let high_index = self.resolve_bit_index(range.0);
+        let low_index = self.resolve_bit_index(range.1);
+        let size = high_index + 1 - low_index;
+        self.with_range_do_arithmetics(range, Box::new(move |a: u128| {
+            let mut values: Vec<bool> = (0..size).map(|n| (a >> n) & 1 == 1).collect();
+
+            let mut rng = rand::thread_rng();
+            let size = values.len();
+            values.partial_shuffle(&mut rng, size);
+
+            let mut result = BufferType::default();
+            for (i, &b) in values.iter().enumerate() {
+                if b {
+                    result = result | (1u128 << i);
+                }
+            }
+            result
+        }
+        ))
+    }
+
     pub fn negate(&mut self) {
         self.is_signed = true;
         let num = self.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit)) as i128;
         self.buffer = (-num) as u128;
         self.buffer = self.buffer & mask_n_ones_from_right(self.effective_bits);
-    }
-    pub fn assign_value(&mut self, other: &Number) {
-        // self.effective_bits must not be changed
-        self.effective_bits = self.effective_bits;
-        self.buffer = other.buffer;
-        self.number_type = other.number_type;
-        self.is_signed = other.is_signed;
-        self.carry = other.carry;
     }
 
     fn resolve_bit_index(&self, bi: BitsIndex) -> usize {
@@ -254,10 +276,6 @@ impl Number {
     }
     pub fn to_u128(&self) -> u128 {
         self.buffer
-    }
-    pub fn flip_all(&mut self) {
-        self.buffer = !self.buffer;
-        self.buffer = self.buffer & mask_n_ones_from_right(self.effective_bits);
     }
     pub fn to_string(&self, radix: u32) -> String {
         if self.is_negative() {
@@ -329,10 +347,6 @@ fn next_power_of_two_rounded_up(n: usize) -> Result<usize, String> {
     }
 }
 
-fn next_power_of_two(n: usize) -> usize {
-    (0x80_00_00_00u32 >> ((n as i32 - 1).leading_zeros() as i32 - 1)) as usize
-}
-
 impl Display for Number {
     // TODO colored output
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -393,15 +407,6 @@ fn mask_n_ones_from_right_test() {
     assert_eq!(0x3f_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff, mask_n_ones_from_right(126));
     assert_eq!(0x7f_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff, mask_n_ones_from_right(127));
     assert_eq!(0xff_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff_ff, mask_n_ones_from_right(128));
-}
-
-#[test]
-fn next_power_of_two_test() {
-    // assert_eq!(1, next_power_of_two(0));
-    assert_eq!(1, next_power_of_two(1));
-    assert_eq!(2, next_power_of_two(2));
-    assert_eq!(4, next_power_of_two(3));
-    assert_eq!(4, next_power_of_two(4));
 }
 
 #[test]
@@ -537,17 +542,6 @@ fn number_to_usize() {
 
     let n = Number::from(&usize::MAX.to_string(), 10).unwrap();
     assert_eq!(usize::MAX, n.to_usize());
-}
-
-#[test]
-fn number_flip_all() {
-    let mut n = Number::from("1", 10).unwrap();
-    n.flip_all();
-    assert_eq!(0b11111110, n.to_usize());
-
-    let mut n = Number::from(&u8::MAX.to_string(), 10).unwrap();
-    n.flip_all();
-    assert_eq!(0, n.to_usize());
 }
 
 #[test]

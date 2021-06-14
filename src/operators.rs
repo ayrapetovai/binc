@@ -1,10 +1,10 @@
 use crate::syntax::{LeftOperandSource, RightOperandSource};
 use crate::number::{Number, BitsIndexRange, BitsIndex, NumberType};
 use colored::{Colorize, Color};
+use rand::random;
 use log::trace;
 
 pub type OperationResult = Result<(HandlerResult, Option<String>), String>;
-
 #[derive(PartialEq)]
 pub enum HandlerResult {
     Historical,
@@ -19,7 +19,6 @@ use HandlerResult::Redo;
 
 pub type Operator = fn(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult;
 
-// TODO colored output
 pub fn operator_show_help(_: &mut Number, _: LeftOperandSource, _: RightOperandSource) -> OperationResult {
     let mut buffer = String::with_capacity(400);
 
@@ -27,7 +26,7 @@ pub fn operator_show_help(_: &mut Number, _: LeftOperandSource, _: RightOperandS
     buffer.push_str(" >> << + - >>> * / % > < ^ & | <<~ ~>> == = <> pow root cnt\r\n");
 
     buffer.push_str(&"operator X:".color(Color::BrightGreen).to_string());
-    buffer.push_str(" ! ~ rand shuf rev\r\n");
+    buffer.push_str(" ! ~ rnd shf rev\r\n");
 
     buffer.push_str(&"X and Y can be:".color(Color::BrightGreen).to_string());
     buffer.push_str(" [] [i] [:] [i:] [:j] [i:j] c; e f\r\n");
@@ -373,6 +372,57 @@ pub fn operator_not(buffer: &mut Number, left: LeftOperandSource, right: RightOp
                 LeftOperandSource::RangeSource(target_range) => {
                     let bits = !buffer.get_bits(target_range);
                     buffer.set_bits(target_range, bits);
+                },
+                LeftOperandSource::NamedAccessSource(_) => {},
+            }
+        }
+    }
+    Ok((Historical, None))
+}
+
+pub fn operator_reverse(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+    match right {
+        RightOperandSource::DirectSource(_) => return Err("no second operand allowed!".to_owned()),
+        RightOperandSource::RangeSource(_) => return Err("no second operand allowed!".to_owned()),
+        RightOperandSource::NamedAccessSource(_) => {},
+        RightOperandSource::Empty => {
+            match left {
+                LeftOperandSource::RangeSource(target_range) => {
+                    buffer.range_reverse_bits(target_range);
+                },
+                LeftOperandSource::NamedAccessSource(_) => {},
+            }
+        }
+    }
+    Ok((Historical, None))
+}
+
+pub fn operator_random(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+    match right {
+        RightOperandSource::DirectSource(_) => return Err("no second operand allowed!".to_owned()),
+        RightOperandSource::RangeSource(_) => return Err("no second operand allowed!".to_owned()),
+        RightOperandSource::NamedAccessSource(_) => {},
+        RightOperandSource::Empty => {
+            match left {
+                LeftOperandSource::RangeSource(target_range) => {
+                    buffer.set_bits(target_range, random::<u128>());
+                },
+                LeftOperandSource::NamedAccessSource(_) => {},
+            }
+        }
+    }
+    Ok((Historical, None))
+}
+
+pub fn operator_shuffle(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+    match right {
+        RightOperandSource::DirectSource(_) => return Err("no second operand allowed!".to_owned()),
+        RightOperandSource::RangeSource(_) => return Err("no second operand allowed!".to_owned()),
+        RightOperandSource::NamedAccessSource(_) => {},
+        RightOperandSource::Empty => {
+            match left {
+                LeftOperandSource::RangeSource(target_range) => {
+                    buffer.range_shuffle_bits(target_range);
                 },
                 LeftOperandSource::NamedAccessSource(_) => {},
             }
