@@ -1,0 +1,2 @@
+# binc
+CLI BINary Calculator
