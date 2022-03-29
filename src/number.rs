@@ -398,7 +398,7 @@ impl Display for Number {
         writeln!(f, "{}", buffer.color(Color::Red))?;
 
         // write second index line
-        write!(f, "c {}", if self.carry { '1' } else { '0' })?;
+        write!(f, "  {}", if self.carry { '1' } else { '0' })?;
         let mut second_index_line = self.effective_bits as i32 - 4;
         while second_index_line >= 0 {
             //  60 59

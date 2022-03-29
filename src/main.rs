@@ -46,7 +46,7 @@ fn print_ui(number: &Number) {
     );
 
     println!();
-    println!("{}", line.color(Color::BrightYellow));
+    println!("{}", line.color(Color::Green));
     println!("{}", number);
 }
 
