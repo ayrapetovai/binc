@@ -1,7 +1,7 @@
 # binc
 ![image info](https://img.shields.io/badge/status-not%20ready-red)
 ![image info](https://img.shields.io/badge/cargo-1.54.0&ndash;nightly-blue)  
-binc is a command line interface BINary Calculator.
+binc is a BINary Calculator for user command line interface.
 
 It prints *the number* in binary format and reads commands from standard input to be executed upon *the number* or particular bits of *the number*.
 
@@ -12,7 +12,7 @@ $ binc                                           | shell's command line
         0x2a         0d42          0o52          | number representation in different radixes
    31     24  23     16  15      8  7       0    | bit indexes
 +  0000 0000  0000 0000  0000 0000  0010 1010    | the number in binary radix
-c 0  28 27      20 19      12 11       4 3       | bit indexes
+  0  28 27      20 19      12 11       4 3       | bit indexes
 (binc)                                           | binc's prompt
 ```
 
@@ -20,7 +20,7 @@ c 0  28 27      20 19      12 11       4 3       | bit indexes
 
 On the line called "*the number* in binary radix" there is a '+' on the left, it represents that the number is positive, '-' for negative number.
 
-The 'c 0' under the '+' means carry, it as a state of "carry bit", whether the overflow occurred after operation or not.
+The '  0' under the '+' means carry, it as a state of "carry bit", whether the overflow occurred after operation or not.
 
 ## Usage
 Command syntax is:  
@@ -31,7 +31,7 @@ Command syntax is:
 , where *X* is lvalue, a **range** only; *Y* is rvalue operand, a **number** or **range**; *operator* is some math operation, like `>>` or `+`; *command* is literal command.
 Spaces are ignored like in Fortran ☺️  
 **number** is a numeric literal with prefixes 0x, 0d, 0b, 0h(0x) to specify corresponding radix. Can be prefixed with minus to make it negative.  
-First operand *X* may be omitted, by default it is range `[]` - *the whole number*, `[i:j]` - bits from `j` to `i`, j <= i. If *operator* is omitted than binc do assignment operation by default. Only *Y* operand is necessary. If one typed just 123, the number 123 will be set.  
+First operand *X* may be omitted, by default it is range `[]` - *the whole number*, `[i:j]` - bits from `j` to `i`, j <= i, `[i]` operates on exactly i-th bit. If *operator* is omitted than binc do assignment operation by default. Only *Y* operand is necessary. If one typed just 123, the number 123 will be set.  
 Empty command line repeats last command.
 
 binc knows `help` command with no arguments, which will print all possible commands and operators and syntax tips for using them.
@@ -75,14 +75,15 @@ Quit binc by sending `[CTRL+C]`, `[CTRL+D]` or pressing `[CTRL+Q]`.
 ## Examples
 `(binc) 42` sets *the number* to 42.  
 `(binc) +1` add 1 to *the number*.  
-`(binc) /2>>1` divides *the number* by 2 and shifts right one bit.  
+`(binc) /2;>>1` divides *the number* by 2 and shifts right one bit.  
 `(binc) [31]=1` set 31-st bit of *the number* to 1, the number becomes negative.  
 `(binc) [31:24] cnt 0` count zero bits in range from 24-th bit to 31-st bit inclusive.  
 `(binc) [15:4] printf x` prints bits from 4 to 15 inclusive as hexadecimal (not ready).
+`(binc) [15:0] <> [31:16]` swap values of lower and higher bits of the number.
 
 ## Miscellaneous
 - binc is colored
 ![image info](./pictures/binc-output.png)
-- It is possible to make binc to print logs by passing flag -v to command line.  
-- Set history size by passing --history=X, where X is a history length.
+- It is possible to make binc to print logs by passing flag -v in command line.  
+- Set history size by passing --history=X in command line, where X is a history length.
 - binc's command line supports multiple commands in one line, separated by `;`.
