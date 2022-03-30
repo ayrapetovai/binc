@@ -37,12 +37,13 @@ use std::str::FromStr;
 use smallvec::{smallvec, SmallVec};
 use std::rc::Rc;
 use std::cell::{RefCell, Cell};
+use std::process::exit;
 
 fn print_ui(number: &Number) {
     let line = format!(
         "{3:>0$} {4:>1$} {5:>2$}",
         number.number_of_digits_in_radix(16) + 2, number.number_of_digits_in_radix(10) + 2, number.number_of_digits_in_radix(8) + 2,
-        number.to_string(16), number.to_string(10), number.to_string(8)
+        number.to_string_prefixed(16), number.to_string_prefixed(10), number.to_string_prefixed(8)
     );
 
     println!();
@@ -65,41 +66,7 @@ fn generate_executor(command: &str) -> Result<Box<Executor>, String> {
     }
 }
 
-fn main() {
-    // TODO make struct with parameters https://github.com/clap-rs/clap
-    // TODO make a cli.yml (https://docs.rs/clap/2.33.3/clap/), and use it like this: let yaml = load_yaml!("cli.yml"); let matches = App::from_yaml(yaml).get_matches();
-    let matches = App::new("binc")
-        .arg(Arg::with_name("v")
-            .short("v")
-            .multiple(true)
-            .help("Sets the level of verbosity. More 'v's, more verbosity. Four 'v' are used for the most verbose output"))
-        .arg(Arg::with_name("history")
-            .long("history")
-            .default_value("100")
-            .takes_value(true)
-            .help("Set the size of the command history"))
-        .get_matches();
-
-    let verbosity_level = match matches.occurrences_of("v") {
-        0..=4 => matches.occurrences_of("v"),
-        _ => {
-            println!("Verbosity level must be 0 to 4 inclusive.");
-            return;
-        }
-    } as usize;
-
-    let history_size_raw = matches.value_of("history").unwrap();
-    let history_size = match usize::from_str(history_size_raw) {
-        Ok(s) => s,
-        Err(e) => {
-            println!("Consider key 'history', value '{}' for size cannot be parsed: {}", history_size_raw, e);
-            return;
-        }
-    };
-    debug!("History size {}", history_size);
-
-    stderrlog::new().module(module_path!()).verbosity(verbosity_level).init().unwrap();
-
+fn interactive_routine(history_size: usize) {
     // `()` can be used when no completer is required
     let mut cli_editor = Editor::<()>::new();
     cli_editor.set_max_history_size(history_size);
@@ -116,7 +83,7 @@ fn main() {
         let input = cli_editor.readline("(binc) ");
         match input {
             Ok(commands) => {
-                trace!("main: got commands: '{}'", commands);
+                trace!("interactive: got commands: '{}'", commands);
                 let command_list = commands.split(";").collect::<Vec<_>>();
                 for mut command in command_list {
                     if command.is_empty() {
@@ -161,6 +128,122 @@ fn main() {
                 error!("Error: {:?}", err);
                 break
             }
+        }
+    }
+}
+
+fn not_interactive_routine(commands: &str, format: &str) {
+    let mut main_buffer = Number::new(NumberType::Integer, true, 32).unwrap();
+
+    trace!("interactive: got commands: '{}'", commands);
+    let command_list = commands.split(";").collect::<Vec<_>>();
+    for command in command_list {
+        if command.is_empty() {
+            trace!("nothing to do");
+            exit(0);
+        }
+        match generate_executor(command) {
+            Ok(executor) => {
+                match executor(&mut main_buffer) {
+                    Ok((handler_result, _)) => {
+                        match handler_result {
+                            HandlerResult::Historical => {},
+                            HandlerResult::Undo => {
+                                trace!("undo does not work in non-interactive mode");
+                            },
+                            HandlerResult::Redo => {
+                                trace!("redo does not work in non-interactive mode");
+                            },
+                            HandlerResult::Nonhistorical => {}
+                        }
+                    }
+                    Err(err_msg) => {
+                        eprintln!("operation error: {}", err_msg);
+                        exit(1);
+                    }
+                }
+                trace!("buffer: {}, size {}, bits 0b{:b} ", main_buffer.signed(), main_buffer.max_size(), main_buffer.to_u128());
+            }
+            Err(err_msg) => {
+                eprintln!("parsing error: {}", err_msg);
+                exit(1);
+            }
+        }
+    }
+    trace!("command executing is done, format is '{}'", format);
+    // FIXME refactor format parsing
+    let output = match format {
+        "0x" => main_buffer.to_string(16, true),
+        "x" => main_buffer.to_string(16, false),
+        "0d" => main_buffer.to_string(10, true),
+        "d" => main_buffer.to_string(10, false),
+        "0o" => main_buffer.to_string(8, true),
+        "o" => main_buffer.to_string(8, false),
+        "0b" => main_buffer.to_string(2, true),
+        "b" => main_buffer.to_string(2, false),
+        _ => "".to_owned()
+    };
+    if !output.is_empty() {
+        println!("{}", output);
+    }
+}
+
+fn main() {
+    // TODO make struct with parameters https://github.com/clap-rs/clap
+    // TODO make a cli.yml (https://docs.rs/clap/2.33.3/clap/), and use it like this: let yaml = load_yaml!("cli.yml"); let matches = App::from_yaml(yaml).get_matches();
+    let matches = App::new("binc")
+        .version("binc-v1")
+        .version_short("v1")
+        .arg(Arg::with_name("v")
+            .short("v")
+            .multiple(true)
+            .help("Sets the level of verbosity. More 'v's, more verbosity. Four 'v' are used for the most verbose output"))
+        .arg(Arg::with_name("history")
+            .long("history")
+            .short("h")
+            .default_value("100")
+            .takes_value(true)
+            .help("Set the size of the command history"))
+        .arg(Arg::with_name("expression")
+            .long("expression")
+            .short("e")
+            .takes_value(true)
+            .help("commands to execute, separated by ';'"))
+        .arg(Arg::with_name("format")
+            .long("format")
+            .short("f")
+            .takes_value(true)
+            .default_value("b")
+            .help("b -binary, o - octal, d - decimal, h - hexadecimal. 0f - with prefix, where f is (b|o|d|h)+"))
+        .get_matches();
+
+    let verbosity_level = match matches.occurrences_of("v") {
+        0..=4 => matches.occurrences_of("v"),
+        _ => {
+            println!("Verbosity level must be 0 to 4 inclusive.");
+            return;
+        }
+    } as usize;
+
+    let history_size_raw = matches.value_of("history").unwrap();
+    let history_size = match usize::from_str(history_size_raw) {
+        Ok(s) => s,
+        Err(e) => {
+            println!("Consider key 'history', value '{}' for size cannot be parsed: {}", history_size_raw, e);
+            return;
+        }
+    };
+    debug!("History size {}", history_size);
+
+    stderrlog::new().module(module_path!()).verbosity(verbosity_level).init().unwrap();
+
+    match matches.value_of("expression") {
+        Some(commands) => {
+            let format = matches.value_of("format").unwrap();
+            not_interactive_routine(commands, format);
+        },
+        None => {
+            interactive_routine(history_size);
         }
     }
 }
