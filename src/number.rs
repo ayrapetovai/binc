@@ -293,22 +293,26 @@ impl Number {
     pub fn to_u128(&self) -> u128 {
         self.buffer
     }
-    pub fn to_string(&self, radix: u32) -> String {
+    pub fn to_string_prefixed(&self, radix: u32) -> String {
+        self.to_string(radix, true)
+    }
+    pub fn to_string(&self, radix: u32, with_prefix: bool) -> String {
+        // FIXME refactor
         if self.is_negative() {
             let value = !(self.buffer - 1) & mask_n_ones_from_right(self.effective_bits - 1);
             match radix {
-                2 => format!("-0b{:b}", value).to_owned(),
-                8 => format!("-0o{:o}", value).to_owned(),
-                10 => format!("-0d{}", value).to_owned(),
-                16 => format!("-0x{:x}", value).to_owned(),
+                2 => if with_prefix { format!("-0b{:b}", value).to_owned() } else { format!("-{:b}", value).to_owned() },
+                8 => if with_prefix { format!("-0o{:o}", value).to_owned() } else { format!("-{:o}", value).to_owned() },
+                10 => if with_prefix { format!("-0d{}", value).to_owned() } else { format!("-{}", value).to_owned() },
+                16 => if with_prefix { format!("-0x{:x}", value).to_owned() } else { format!("-0d{}", value).to_owned() },
                 _ => panic!("cannot translate to number of radix {}", radix)
             }
         } else {
             match radix {
-                2 => format!("0b{:b}", self.buffer).to_owned(),
-                8 => format!("0o{:o}", self.buffer).to_owned(),
-                10 => format!("0d{}", self.buffer).to_owned(),
-                16 => format!("0x{:x}", self.buffer).to_owned(),
+                2 => if with_prefix { format!("0b{:b}", self.buffer).to_owned() } else { format!("{:b}", self.buffer).to_owned() },
+                8 => if with_prefix { format!("0o{:o}", self.buffer).to_owned() } else { format!("{:o}", self.buffer).to_owned() },
+                10 => if with_prefix { format!("0d{}", self.buffer).to_owned() } else { format!("{}", self.buffer).to_owned() },
+                16 => if with_prefix { format!("0x{:x}", self.buffer).to_owned() } else { format!("{:x}", self.buffer).to_owned() },
                 _ => panic!("cannot translate to number of radix {}", radix)
             }
         }
@@ -472,16 +476,16 @@ fn from_str_r10() {
     assert_eq!(0b11111111, n.to_usize());
 
     let n = Number::from(&*u32::MAX.to_string(), 10).unwrap();
-    assert_eq!("0b11111111111111111111111111111111", n.to_string(2));
+    assert_eq!("0b11111111111111111111111111111111", n.to_string_prefixed(2));
 
     let n = Number::from("2147483648", 10).unwrap();
-    assert_eq!("0b10000000000000000000000000000000", n.to_string(2));
+    assert_eq!("0b10000000000000000000000000000000", n.to_string_prefixed(2));
 }
 
 #[test]
 fn from_str_r2() {
     let n = Number::from("10000000000000000000000000000000", 2).unwrap();
-    assert_eq!("0b10000000000000000000000000000000", n.to_string(2));
+    assert_eq!("0b10000000000000000000000000000000", n.to_string_prefixed(2));
 
     let n = Number::from("0", 2).unwrap();
     assert_eq!(0, n.to_usize());
@@ -502,7 +506,7 @@ fn from_str_r2() {
     assert_eq!(0b11111, n.to_usize());
 
     let n = Number::from("1111111111111111111111111111111111111111", 2).unwrap();
-    assert_eq!("0b1111111111111111111111111111111111111111", n.to_string(2));
+    assert_eq!("0b1111111111111111111111111111111111111111", n.to_string_prefixed(2));
 }
 
 #[test]
