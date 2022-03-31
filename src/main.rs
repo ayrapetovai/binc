@@ -139,7 +139,7 @@ fn not_interactive_routine(commands: &str, format: &str) {
     let command_list = commands.split(";").collect::<Vec<_>>();
     for command in command_list {
         if command.is_empty() {
-            trace!("nothing to do");
+            debug!("nothing to do");
             exit(0);
         }
         match generate_executor(command) {
@@ -149,10 +149,10 @@ fn not_interactive_routine(commands: &str, format: &str) {
                         match handler_result {
                             HandlerResult::Historical => {},
                             HandlerResult::Undo => {
-                                trace!("undo does not work in non-interactive mode");
+                                eprintln!("undo does not work in non-interactive mode");
                             },
                             HandlerResult::Redo => {
-                                trace!("redo does not work in non-interactive mode");
+                                eprintln!("redo does not work in non-interactive mode");
                             },
                             HandlerResult::Nonhistorical => {}
                         }
