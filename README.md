@@ -1,9 +1,10 @@
 # binc
 ![image info](https://img.shields.io/badge/status-not%20ready-red)
 ![image info](https://img.shields.io/badge/cargo-1.54.0&ndash;nightly-blue)  
-binc is a BINary Calculator for user command line interface.
+binc is a BINary Calculator with command-line interface.
 
-It prints *the number* in binary format and reads commands from standard input to be executed upon *the number* or particular bits of *the number*.
+It prints *the number* in binary format and reads commands from standard input
+to be executed upon *the number* or particular bits of *the number*.
 
 Or it reads commands from command line argument and prints the result.
 
@@ -22,7 +23,8 @@ $ binc                                           # shell's command line
 
 On the line called "*the number* in binary radix" there is a '+' on the left, it represents that the number is positive, '-' for negative number.
 
-The '  0' under the '+' means carry, it is a state of "carry bit", it indicates whether the overflow occurred after operation or not.
+The '  0' under the '+' means carry, it is a state of the "carry bit".
+Carry bit indicates whether the overflow occurred after operation or not.
 
 To run binc in non-interactive mode run it with key `-e` and pass a list of binc's commands separated by `;`, see [examples](#Examples).
 
@@ -65,17 +67,17 @@ To quit binc send `[CTRL+C]`, `[CTRL+D]` or press `[CTRL+Q]`.
 | `rev`    | reverse      |          |                     |
 
 ## Commands
-| command    | action                                                           |
-|------------|:-----------------------------------------------------------------|
-| `help`     | prints all operators, commands and syntactic tips                |
-| `undo`     | undo last operation                                              |
-| `reduo`    | redo operation, that was "undo"ed                                |
-| `intX`     | treat *the number* as an integer, X - bits: 8, 16, 32, 64, 128.  |
-| `floatX`   | treat *the number* as a floating point one, X - bits.            |
-| `fixedX`   | treat *the number* as a fixed point one, X - bits.               |
-| `printf`   | prints *the number* in a specified format.                       |
-| `signed`   | treat *the number* as singed int (bit width does not change).    |
-| `unsigned` | treat *the number* as unsigned int (bit width does not change) . |
+| command    | action                                                            |
+|------------|:------------------------------------------------------------------|
+| `help`     | prints all operators, commands and syntactic tips                 |
+| `undo`     | undo last operation                                               |
+| `reduo`    | redo operation, that was "undo"ed                                 |
+| `intX`     | treat *the number* as an integer, X - bits: 8, 16, 32, 64, 128.   |
+| `floatX`   | treat *the number* as a floating point one, X - bits. (not ready) |
+| `fixedX`   | treat *the number* as a fixed point one, X - bits. (not ready)    |
+| `printf`   | prints *the number* in a specified format. (not ready)            |
+| `signed`   | treat *the number* as singed int (bit width does not change).     |
+| `unsigned` | treat *the number* as unsigned int (bit width does not change) .  |
 
 ## Examples
 `(binc) 42` sets *the number* to 42.  
@@ -89,6 +91,15 @@ To quit binc send `[CTRL+C]`, `[CTRL+D]` or press `[CTRL+Q]`.
 `(binc) [15:0] <> [31:16]` swap values of lower and higher bits of the number.  
 `$ binc -e'-1;[7:0]&0'` sets negative number (all bits become 1), than nulls first byte, prints.  
 `$ binc -e '123' -fx` initialize with 123, prints as hexadecimal.
+
+## Build and Install
+[Install](https://doc.rust-lang.org/cargo/getting-started/installation.html) Rust, compile and run:
+```shell
+cargo build --release
+cargo install
+# run binc, try to brake it
+cargo uninstall
+```
 
 ## Miscellaneous
 - binc is colored
