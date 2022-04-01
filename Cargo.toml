@@ -5,7 +5,7 @@ authors = ["artem"]
 edition = "2018"
 
 [dependencies]
-clap = "2.33.3"
+clap = { version = "3.1.8", features = ["cargo"] }
 #bigdecimal = "0.2.0"
 log = "0.4"
 rustyline = "8.0.0"

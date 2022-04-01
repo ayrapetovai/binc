@@ -31,12 +31,10 @@ use syntax::parse;
 use operators::{HandlerResult};
 use crate::operators::OperationResult;
 use crate::history::History;
-use clap::{App, Arg};
+use clap::{Arg, command};
 use colored::{Colorize, Color};
 use std::str::FromStr;
-use smallvec::{smallvec, SmallVec};
-use std::rc::Rc;
-use std::cell::{RefCell, Cell};
+use smallvec::{smallvec};
 use std::process::exit;
 
 fn print_ui(number: &Number) {
@@ -191,27 +189,26 @@ fn not_interactive_routine(commands: &str, format: &str) {
 fn main() {
     // TODO make struct with parameters https://github.com/clap-rs/clap
     // TODO make a cli.yml (https://docs.rs/clap/2.33.3/clap/), and use it like this: let yaml = load_yaml!("cli.yml"); let matches = App::from_yaml(yaml).get_matches();
-    let matches = App::new("binc")
-        .version("binc-v1")
-        .version_short("v1")
-        .arg(Arg::with_name("v")
-            .short("v")
-            .multiple(true)
+    let matches = command!()
+        .version("1")
+        .arg(Arg::new("v")
+            .short('v')
+            .multiple_occurrences(true)// multiple_values?
             .help("Sets the level of verbosity. More 'v's, more verbosity. Four 'v' are used for the most verbose output"))
-        .arg(Arg::with_name("history")
+        .arg(Arg::new("history")
             .long("history")
-            .short("h")
+            .short('h')
             .default_value("100")
             .takes_value(true)
             .help("Set the size of the command history"))
-        .arg(Arg::with_name("expression")
+        .arg(Arg::new("expression")
             .long("expression")
-            .short("e")
+            .short('e')
             .takes_value(true)
             .help("commands to execute, separated by ';'"))
-        .arg(Arg::with_name("format")
+        .arg(Arg::new("format")
             .long("format")
-            .short("f")
+            .short('f')
             .takes_value(true)
             .default_value("b")
             .help("b -binary, o - octal, d - decimal, h - hexadecimal. 0f - with prefix, where f is (b|o|d|h)+"))
