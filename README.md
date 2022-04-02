@@ -89,7 +89,7 @@ To quit binc send `[CTRL+C]`, `[CTRL+D]` or press `[CTRL+Q]`.
 `(binc) [31:24] cnt 0` count zero bits in range from 24-th bit to 31-st bit inclusive.  
 `(binc) [15:4] printf x` prints bits from 4 to 15 inclusive as hexadecimal (not ready).  
 `(binc) [15:0] <> [31:16]` swap values of lower and higher bits of the number.  
-`$ binc -e'-1;[7:0]&0'` sets negative number (all bits become 1), than nulls first byte, prints.  
+`$ binc -e '-1;[7:0]&0'` sets negative number (all bits become 1), than nulls first byte, prints.  
 `$ binc -e '123' -fx` initialize with 123, prints as hexadecimal.
 
 ## Build and Install

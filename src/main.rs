@@ -205,6 +205,7 @@ fn main() {
             .long("expression")
             .short('e')
             .takes_value(true)
+            .allow_hyphen_values(true)
             .help("commands to execute, separated by ';'"))
         .arg(Arg::new("format")
             .long("format")
