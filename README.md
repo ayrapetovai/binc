@@ -104,4 +104,4 @@ cargo run
 ![image info](./pictures/binc-output.png)
 - It is possible to make binc to print logs by passing flag -v in command line. To report a bug please do `binc -vvvv -e '...'` with commands which caused a bug, and copy output to the issues of the repo. 
 - Set history size by passing --history=X in command line, where X is a desired history length.
-- `$ binc -e -- '-1'` to set negative number does not work because of clap library [bug](https://github.com/clap-rs/clap/issues/3601).
+- `$ binc -e -- '-1'` to set negative number does not work.

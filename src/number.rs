@@ -297,25 +297,31 @@ impl Number {
         self.to_string(radix, true)
     }
     pub fn to_string(&self, radix: u32, with_prefix: bool) -> String {
-        // FIXME refactor
-        if self.is_negative() {
-            let value = !(self.buffer - 1) & mask_n_ones_from_right(self.effective_bits - 1);
-            match radix {
-                2 => if with_prefix { format!("-0b{:b}", value).to_owned() } else { format!("-{:b}", value).to_owned() },
-                8 => if with_prefix { format!("-0o{:o}", value).to_owned() } else { format!("-{:o}", value).to_owned() },
-                10 => if with_prefix { format!("-0d{}", value).to_owned() } else { format!("-{}", value).to_owned() },
-                16 => if with_prefix { format!("-0x{:x}", value).to_owned() } else { format!("-0d{}", value).to_owned() },
-                _ => panic!("cannot translate to number of radix {}", radix)
-            }
+        let value = if self.is_negative() {
+            !(self.buffer - 1) & mask_n_ones_from_right(self.effective_bits - 1)
         } else {
+            self.buffer
+        };
+        let mut formatted = match radix {
+            2 => format!("{:b}", value).to_owned(),
+            8 => format!("{:o}", value).to_owned(),
+            10 => format!("{}", value).to_owned(),
+            16 => format!("{:x}", value).to_owned(),
+            _ => panic!("cannot translate to number of radix {}", radix)
+        };
+        if with_prefix {
             match radix {
-                2 => if with_prefix { format!("0b{:b}", self.buffer).to_owned() } else { format!("{:b}", self.buffer).to_owned() },
-                8 => if with_prefix { format!("0o{:o}", self.buffer).to_owned() } else { format!("{:o}", self.buffer).to_owned() },
-                10 => if with_prefix { format!("0d{}", self.buffer).to_owned() } else { format!("{}", self.buffer).to_owned() },
-                16 => if with_prefix { format!("0x{:x}", self.buffer).to_owned() } else { format!("{:x}", self.buffer).to_owned() },
-                _ => panic!("cannot translate to number of radix {}", radix)
+                2 => formatted.insert_str(0, "0b"),
+                8 => formatted.insert_str(0, "0o"),
+                10 => formatted.insert_str(0, "0d"),
+                16 => formatted.insert_str(0, "0x"),
+                _ => panic!("cannot choose prefix for radix {}", radix)
             }
         }
+        if self.is_negative() {
+            formatted.insert(0, '-');
+        }
+        formatted
     }
     pub fn is_negative(&self) -> bool {
         self.is_signed && self.buffer & mask_nth_bit(self.effective_bits - 1) != 0

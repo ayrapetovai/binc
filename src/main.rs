@@ -207,7 +207,7 @@ fn main() {
             .takes_value(true)
             .allow_hyphen_values(true)
             .help("commands to execute, separated by ';'"))
-        .arg(Arg::new("format")
+        .arg(Arg::new("format") // TODO this functionality must be implemented in `printf` operator
             .long("format")
             .short('f')
             .takes_value(true)
