@@ -1,7 +1,7 @@
 # binc
 ![image info](https://img.shields.io/badge/status-not%20ready-red)
 ![image info](https://img.shields.io/badge/cargo-1.54.0&ndash;nightly-blue)  
-binc is a BINary Calculator with command-line interface.
+binc is a BINary Calculator with REPL user interface.
 
 It prints *the number* in binary format and reads commands from standard input
 to be executed upon *the number* or particular bits of *the number*.
