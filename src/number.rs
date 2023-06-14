@@ -18,7 +18,6 @@ use std::fmt::{Display, Formatter};
 use log::trace;
 use std::mem::size_of;
 use colored::{Colorize, Color};
-use rand::{random, Rng};
 use rand::prelude::SliceRandom;
 
 #[derive(Debug, Copy, Clone)]
@@ -65,7 +64,18 @@ impl Number {
             Err(message) => Err(message)
         }
     }
-    pub fn from(number_literal: &str, radix: u32) -> Result<Self, String> {
+    pub fn from_char(c: char) -> Result<Self, String> {
+        Ok(
+            Self {
+                buffer: c.into(),
+                effective_bits: c.len_utf8() * 8,
+                number_type: NumberType::Integer,
+                is_signed: false,
+                carry: false,
+            }
+        )
+    }
+    pub fn from_str(number_literal: &str, radix: u32) -> Result<Self, String> {
         let radix= radix as u128;
         trace!("Number::from: parsing literal '{}', radix {}", number_literal, radix);
         let is_negative = number_literal.starts_with("-");
@@ -293,6 +303,12 @@ impl Number {
     pub fn to_u128(&self) -> u128 {
         self.buffer
     }
+    pub fn to_string_as_char(&self) -> String {
+        match char::from_u32(self.to_u128() as u32) {
+            Some(c) => if !c.is_control() { format!("'{}'", c) } else { " ? ".to_owned() },
+            None => " ? ".to_owned()
+        }
+    }
     pub fn to_string_prefixed(&self, radix: u32) -> String {
         self.to_string(radix, true)
     }
@@ -447,102 +463,114 @@ fn mask_from_bit_to_bit_test() {
 }
 
 #[test]
+fn from_char() {
+    let n = Number::from_char('a').unwrap();
+    assert_eq!(0b01100001u128, n.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit)));
+
+    let n = Number::from_char('λ').unwrap();
+    assert_eq!(0b0000001110111011, n.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit)));
+
+    let n = Number::from_char('心').unwrap();
+    assert_eq!(0b0101111111000011u128, n.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit)));
+}
+
+#[test]
 fn from_negative_str_r10() {
-    let n = Number::from("-0", 10).unwrap();
+    let n = Number::from_str("-0", 10).unwrap();
     assert_eq!(0, n.to_usize());
 
-    let n = Number::from("-1", 10).unwrap();
+    let n = Number::from_str("-1", 10).unwrap();
     assert_eq!(0b11111111, n.to_usize());
 }
 
 #[test]
 fn from_str_r10() {
-    let n = Number::from("0", 10).unwrap();
+    let n = Number::from_str("0", 10).unwrap();
     assert_eq!(0, n.to_usize());
 
-    let n = Number::from("1", 10).unwrap();
+    let n = Number::from_str("1", 10).unwrap();
     assert_eq!(1, n.to_usize());
 
-    let n = Number::from("2", 10).unwrap();
+    let n = Number::from_str("2", 10).unwrap();
     assert_eq!(0b10, n.to_usize());
 
-    let n = Number::from("9", 10).unwrap();
+    let n = Number::from_str("9", 10).unwrap();
     assert_eq!(0b1001, n.to_usize());
 
-    let n = Number::from("10", 10).unwrap();
+    let n = Number::from_str("10", 10).unwrap();
     assert_eq!(0b1010, n.to_usize());
 
-    let n = Number::from("15", 10).unwrap();
+    let n = Number::from_str("15", 10).unwrap();
     assert_eq!(0b1111, n.to_usize());
 
-    let n = Number::from("16", 10).unwrap();
+    let n = Number::from_str("16", 10).unwrap();
     assert_eq!(0b10000, n.to_usize());
 
-    let n = Number::from(&*u8::MAX.to_string(), 10).unwrap();
+    let n = Number::from_str(&*u8::MAX.to_string(), 10).unwrap();
     assert_eq!(0b11111111, n.to_usize());
 
-    let n = Number::from(&*u32::MAX.to_string(), 10).unwrap();
+    let n = Number::from_str(&*u32::MAX.to_string(), 10).unwrap();
     assert_eq!("0b11111111111111111111111111111111", n.to_string_prefixed(2));
 
-    let n = Number::from("2147483648", 10).unwrap();
+    let n = Number::from_str("2147483648", 10).unwrap();
     assert_eq!("0b10000000000000000000000000000000", n.to_string_prefixed(2));
 }
 
 #[test]
 fn from_str_r2() {
-    let n = Number::from("10000000000000000000000000000000", 2).unwrap();
+    let n = Number::from_str("10000000000000000000000000000000", 2).unwrap();
     assert_eq!("0b10000000000000000000000000000000", n.to_string_prefixed(2));
 
-    let n = Number::from("0", 2).unwrap();
+    let n = Number::from_str("0", 2).unwrap();
     assert_eq!(0, n.to_usize());
 
-    let n = Number::from("1", 2).unwrap();
+    let n = Number::from_str("1", 2).unwrap();
     assert_eq!(0b1, n.to_usize());
 
-    let n = Number::from("10", 2).unwrap();
+    let n = Number::from_str("10", 2).unwrap();
     assert_eq!(0b10, n.to_usize());
 
-    let n = Number::from("1010", 2).unwrap();
+    let n = Number::from_str("1010", 2).unwrap();
     assert_eq!(0b1010, n.to_usize());
 
-    let n = Number::from("1111", 2).unwrap();
+    let n = Number::from_str("1111", 2).unwrap();
     assert_eq!(0b1111, n.to_usize());
 
-    let n = Number::from("11111", 2).unwrap();
+    let n = Number::from_str("11111", 2).unwrap();
     assert_eq!(0b11111, n.to_usize());
 
-    let n = Number::from("1111111111111111111111111111111111111111", 2).unwrap();
+    let n = Number::from_str("1111111111111111111111111111111111111111", 2).unwrap();
     assert_eq!("0b1111111111111111111111111111111111111111", n.to_string_prefixed(2));
 }
 
 #[test]
 fn from_str_r8() {
-    let n = Number::from("1111", 8).unwrap();
+    let n = Number::from_str("1111", 8).unwrap();
     assert_eq!(0b1001001001, n.to_usize());
 }
 
 #[test]
 fn from_str_r16() {
-    let n = Number::from("F", 16).unwrap();
+    let n = Number::from_str("F", 16).unwrap();
     assert_eq!(0b1111, n.to_usize());
 
-    let n = Number::from("10", 16).unwrap();
+    let n = Number::from_str("10", 16).unwrap();
     assert_eq!(0b10000, n.to_usize());
 
-    let n = Number::from("1F", 16).unwrap();
+    let n = Number::from_str("1F", 16).unwrap();
     assert_eq!(0b11111, n.to_usize());
 
-    let n = Number::from("AF", 16).unwrap();
+    let n = Number::from_str("AF", 16).unwrap();
     assert_eq!(0b10101111, n.to_usize());
 }
 
 #[test]
 fn number_get_bits() {
-    let n = Number::from("F", 16).unwrap();
+    let n = Number::from_str("F", 16).unwrap();
     let bits = n.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
     assert_eq!(0xf, bits);
 
-    let n = Number::from("1E", 16).unwrap();
+    let n = Number::from_str("1E", 16).unwrap();
     let bits = n.get_bits(BitsIndexRange(BitsIndex::IndexedBit(3), BitsIndex::IndexedBit(0)));
     assert_eq!(0b1110, bits);
     let bits = n.get_bits(BitsIndexRange(BitsIndex::IndexedBit(4), BitsIndex::IndexedBit(1)));
@@ -553,50 +581,50 @@ fn number_get_bits() {
 
 #[test]
 fn number_set_bits() {
-    let mut n = Number::from("0", 16).unwrap();
+    let mut n = Number::from_str("0", 16).unwrap();
     n.set_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit), 0b11);
     assert_eq!(0b11, n.to_usize());
 }
 
 #[test]
 fn number_to_usize() {
-    let n = Number::from("0", 10).unwrap();
+    let n = Number::from_str("0", 10).unwrap();
     assert_eq!(0, n.to_usize());
 
-    let n = Number::from("1", 10).unwrap();
+    let n = Number::from_str("1", 10).unwrap();
     assert_eq!(1, n.to_usize());
 
-    let n = Number::from(&usize::MAX.to_string(), 10).unwrap();
+    let n = Number::from_str(&usize::MAX.to_string(), 10).unwrap();
     assert_eq!(usize::MAX, n.to_usize());
 }
 
 #[test]
 fn number_range_add_bits() {
-    let mut n = Number::from("0", 10).unwrap();
+    let mut n = Number::from_str("0", 10).unwrap();
     assert_eq!(0, n.to_usize());
     n.range_add_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit), 1);
     assert_eq!(1, n.to_usize());
 
-    let mut n = Number::from("ffff00", 16).unwrap();
+    let mut n = Number::from_str("ffff00", 16).unwrap();
     n.range_add_bits(BitsIndexRange(BitsIndex::IndexedBit(23), BitsIndex::IndexedBit(8)), 1);
     assert_eq!(0x00_0000_00, n.to_usize());
 
-    let mut n = Number::from("fffe00", 16).unwrap();
+    let mut n = Number::from_str("fffe00", 16).unwrap();
     n.range_add_bits(BitsIndexRange(BitsIndex::IndexedBit(23), BitsIndex::IndexedBit(8)), 1);
     assert_eq!(0xffff00, n.to_usize());
 
-    let mut n = Number::from("0", 16).unwrap();
+    let mut n = Number::from_str("0", 16).unwrap();
     n.range_add_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::IndexedBit(0)), 1);
     assert_eq!(1, n.to_usize());
 
-    let mut n = Number::from("0", 16).unwrap();
+    let mut n = Number::from_str("0", 16).unwrap();
     n.range_add_bits(BitsIndexRange(BitsIndex::IndexedBit(7), BitsIndex::IndexedBit(7)), 1);
     assert_eq!(0x80, n.to_usize());
 }
 
 #[test]
 fn number_signed_shift_left() {
-    let mut n = Number::from("1", 10).unwrap();
+    let mut n = Number::from_str("1", 10).unwrap();
     assert_eq!(0b1, n.to_usize());
     n.signed_shift_left(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit), 1);
     assert_eq!(0b10, n.to_usize());

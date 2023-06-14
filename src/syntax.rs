@@ -197,6 +197,38 @@ fn syntax_accessor(it: ParsingIterator) -> Result<(ParsingIterator, Option<BitsI
     }
 }
 
+fn syntax_letter(it: ParsingIterator) -> Result<(ParsingIterator, RightOperandSource), String> {
+    trace!("syntax_letter: {:?}", it.current());
+    match it.current() {
+        Some(c) => match c {
+            '\'' => {
+                // TODO support emoji, the take more then 1 byte, need to check
+                //  if the char ' are parts of emoji
+                // TODO add support for unicode literals like '\x03BB' or '\u1132'
+                // FIXME Space char ' ' is skipped, fix it
+                let current_it = it.rewind();
+                if let Some(c) = current_it.current() {
+                    let number = Number::from_char(c).unwrap();
+                    let current_it = current_it.rewind();
+                    if let Some(c) = current_it.current() {
+                        if c == '\'' {
+                            Ok((current_it.rewind(), RightOperandSource::DirectSource(number)))
+                        } else {
+                            Err("Letter is not closed with '\\'', only one letter allowed".to_owned())
+                        }
+                    } else {
+                        Err("Command is not complete".to_owned())
+                    }
+                } else {
+                    Err("Letter expected but no characters found".to_owned())
+                }
+            }
+            _ => Err("Given input is not a letter literal".to_owned())
+        }
+        None => Err("No letter present in command as right operand".to_owned())
+    }
+}
+
 fn syntax_operator(it: ParsingIterator) -> (ParsingIterator, Option<Operator>) {
     trace!("syntax_operator: rest {:?}", it.rest());
     match it.current() {
@@ -242,25 +274,26 @@ fn syntax_negative_number(it: ParsingIterator) -> Result<(ParsingIterator, Right
         Some(c) => match c {
             '1'..='9' => syntax_number(it, 10, true),
             '0' => syntax_radix_number(it.rewind(), true),
-            _ => Err("bad number syntax".to_owned())
+            _ => Err("Bad number syntax".to_owned())
         }
-        None => Err("bad negative number syntax".to_owned())
+        None => Err("Bad negative number syntax".to_owned())
     }
 }
 
-// FIXME refactor parsing numbers
+// TODO refactor number parsing
 fn syntax_rvalue(it: ParsingIterator) -> Result<(ParsingIterator, RightOperandSource), String> {
     trace!("syntax_rvalue: with current symbol '{:?}'", it.current());
     match it.current() {
         Some(c) => match c {
             '[' => match syntax_accessor(it) {
                 Ok((it, Some(ops))) => Ok((it, RightOperandSource::RangeSource(ops))),
-                Ok((_, None)) => Err("range access in right value must be correct".to_owned()),
+                Ok((_, None)) => Err("Range access in right value must be correct".to_owned()),
                 Err(message) => Err(message)
             },
             '1'..='9' => syntax_number(it, 10, false),
             '0' => syntax_radix_number(it.rewind(), false),
             '-' => syntax_negative_number(it.rewind()),
+            '\'' => syntax_letter(it),
             _ => Err(format!("number or range had been expected, but '{}' was found", String::from_iter(it.rest())).to_owned())
         }
         None => Ok((it, RightOperandSource::Empty))
@@ -289,9 +322,9 @@ fn syntax_radix_number(it: ParsingIterator, is_negative: bool) -> Result<(Parsin
                 } else {
                     Err("Arbitrary radix must not be empty".to_owned())
                 }
-            _ => Err(format!("bad radix letter '{}'", c))
+            _ => Err(format!("Bad radix letter '{}'", c))
         },
-        None => Ok((it, RightOperandSource::DirectSource(Number::from("0", 10).unwrap())))
+        None => Ok((it, RightOperandSource::DirectSource(Number::from_str("0", 10).unwrap())))
     }
 }
 
@@ -310,7 +343,7 @@ fn syntax_number(mut it: ParsingIterator, radix: u32, is_negative: bool) -> Resu
         it.next();
     }
     trace!("syntax_number: number literal '{}'", number_literal);
-    match Number::from(&number_literal, radix) {
+    match Number::from_str(&number_literal, radix) {
         Ok(number) => Ok((it, RightOperandSource::DirectSource(number))),
         Err(message) => Err(message)
     }
@@ -486,5 +519,37 @@ fn syntax_index_test() {
             assert_eq!("adf".len() - 1, count);
         },
         (_, None) => panic!("syntax_index() must return value if source string has leading digits")
+    }
+}
+
+#[test]
+fn syntax_letter_test() {
+    match syntax_letter(ParsingIterator::from("'a'").unwrap()) {
+        Ok((it, right_operand_source)) => {
+            if let Some(_) = it.current() {
+                panic!("syntax_letter() did not parse the whole string to the end")
+            }
+            match right_operand_source {
+                RightOperandSource::DirectSource(n) => {
+                    assert_eq!(0b01100001u128, n.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit)))
+                }
+                _ => panic!("syntax_letter() returned not a DirectSource")
+            }
+        }
+        Err(_) => panic!("syntax_letter() failed to parse letter literal")
+    }
+
+    match syntax_letter(ParsingIterator::from("'aa'").unwrap()) {
+        Ok((_, _)) => {
+            panic!("syntax_letter() failed to detect that there are several chars")
+        }
+        Err(_) => {} // OK
+    }
+
+    match syntax_letter(ParsingIterator::from("''").unwrap()) {
+        Ok((_, _)) => {
+            panic!("syntax_letter() failed to detect that there are no chars")
+        }
+        Err(_) => {} // OK
     }
 }

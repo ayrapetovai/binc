@@ -79,7 +79,7 @@ pub fn operator_assign(buffer: &mut Number, left: LeftOperandSource, right: Righ
             }
         }
         RightOperandSource::NamedAccessSource(_) => {},
-        RightOperandSource::Empty => return Err("no second operand!".to_owned())
+        RightOperandSource::Empty => return Err("No second operand!".to_owned())
     }
     Ok((Historical, None))
 }
@@ -108,7 +108,7 @@ pub fn operator_sum(buffer: &mut Number, left: LeftOperandSource, right: RightOp
             }
         }
         RightOperandSource::NamedAccessSource(_) => {},
-        RightOperandSource::Empty => return Err("no second operand!".to_owned())
+        RightOperandSource::Empty => return Err("No second operand!".to_owned())
     }
     Ok((Historical, None))
 }
@@ -135,7 +135,7 @@ pub fn operator_sub(buffer: &mut Number, left: LeftOperandSource, right: RightOp
             }
         }
         RightOperandSource::NamedAccessSource(_) => {},
-        RightOperandSource::Empty => return Err("no second operand!".to_owned())
+        RightOperandSource::Empty => return Err("No second operand!".to_owned())
     }
     Ok((Historical, None))
 }
@@ -162,7 +162,7 @@ pub fn operator_mul(buffer: &mut Number, left: LeftOperandSource, right: RightOp
             }
         }
         RightOperandSource::NamedAccessSource(_) => {},
-        RightOperandSource::Empty => return Err("no second operand!".to_owned())
+        RightOperandSource::Empty => return Err("No second operand!".to_owned())
     }
     Ok((Historical, None))
 }
@@ -174,7 +174,11 @@ pub fn operator_div(buffer: &mut Number, left: LeftOperandSource, right: RightOp
             match left {
                 LeftOperandSource::RangeSource(target_range) => {
                     let bits = second_sum_operand.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
-                    buffer.range_div_bits(target_range, bits);
+                    if bits != 0u128 {
+                        buffer.range_div_bits(target_range, bits);
+                    } else {
+                        return Err("Cannot divide by 0".to_owned());
+                    }
                 },
                 LeftOperandSource::NamedAccessSource(_) => {},
             }
@@ -183,13 +187,17 @@ pub fn operator_div(buffer: &mut Number, left: LeftOperandSource, right: RightOp
             match left {
                 LeftOperandSource::RangeSource(target_range) => {
                     let bits = buffer.get_bits(source_range);
-                    buffer.range_div_bits(target_range, bits);
+                    if bits != 0u128 {
+                        buffer.range_div_bits(target_range, bits);
+                    } else {
+                        return Err("There are only 0 bits in given range, cannot divide by 0".to_owned())
+                    }
                 },
                 LeftOperandSource::NamedAccessSource(_) => {},
             }
         }
         RightOperandSource::NamedAccessSource(_) => {},
-        RightOperandSource::Empty => return Err("no second operand!".to_owned())
+        RightOperandSource::Empty => return Err("No second operand!".to_owned())
     }
     Ok((Historical, None))
 }
@@ -216,7 +224,7 @@ pub fn operator_mod(buffer: &mut Number, left: LeftOperandSource, right: RightOp
             }
         }
         RightOperandSource::NamedAccessSource(_) => {},
-        RightOperandSource::Empty => return Err("no second operand!".to_owned())
+        RightOperandSource::Empty => return Err("No second operand!".to_owned())
     }
     Ok((Historical, None))
 }
@@ -311,7 +319,7 @@ pub fn operator_xor(buffer: &mut Number, left: LeftOperandSource, right: RightOp
             }
         }
         RightOperandSource::NamedAccessSource(_) => {},
-        RightOperandSource::Empty => return Err("no second operand!".to_owned())
+        RightOperandSource::Empty => return Err("No second operand!".to_owned())
     }
     Ok((Historical, None))
 }
@@ -338,7 +346,7 @@ pub fn operator_and(buffer: &mut Number, left: LeftOperandSource, right: RightOp
             }
         }
         RightOperandSource::NamedAccessSource(_) => {},
-        RightOperandSource::Empty => return Err("no second operand!".to_owned())
+        RightOperandSource::Empty => return Err("No second operand!".to_owned())
     }
     Ok((Historical, None))
 }
@@ -365,14 +373,14 @@ pub fn operator_or(buffer: &mut Number, left: LeftOperandSource, right: RightOpe
             }
         }
         RightOperandSource::NamedAccessSource(_) => {},
-        RightOperandSource::Empty => return Err("no second operand!".to_owned())
+        RightOperandSource::Empty => return Err("No second operand!".to_owned())
     }
     Ok((Historical, None))
 }
 
 pub fn operator_not(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
-        RightOperandSource::DirectSource(_) => return Err("no second operand allowed!".to_owned()),
+        RightOperandSource::DirectSource(_) => return Err("No second operand allowed!".to_owned()),
         RightOperandSource::RangeSource(source_range) => {
             match left {
                 LeftOperandSource::RangeSource(target_range) => {
@@ -398,8 +406,8 @@ pub fn operator_not(buffer: &mut Number, left: LeftOperandSource, right: RightOp
 
 pub fn operator_reverse(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
-        RightOperandSource::DirectSource(_) => return Err("no second operand allowed!".to_owned()),
-        RightOperandSource::RangeSource(_) => return Err("no second operand allowed!".to_owned()),
+        RightOperandSource::DirectSource(_) => return Err("No second operand allowed!".to_owned()),
+        RightOperandSource::RangeSource(_) => return Err("No second operand allowed!".to_owned()),
         RightOperandSource::NamedAccessSource(_) => {},
         RightOperandSource::Empty => {
             match left {
@@ -415,8 +423,8 @@ pub fn operator_reverse(buffer: &mut Number, left: LeftOperandSource, right: Rig
 
 pub fn operator_random(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
-        RightOperandSource::DirectSource(_) => return Err("no second operand allowed!".to_owned()),
-        RightOperandSource::RangeSource(_) => return Err("no second operand allowed!".to_owned()),
+        RightOperandSource::DirectSource(_) => return Err("No second operand allowed!".to_owned()),
+        RightOperandSource::RangeSource(_) => return Err("No second operand allowed!".to_owned()),
         RightOperandSource::NamedAccessSource(_) => {},
         RightOperandSource::Empty => {
             match left {
@@ -432,8 +440,8 @@ pub fn operator_random(buffer: &mut Number, left: LeftOperandSource, right: Righ
 
 pub fn operator_shuffle(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
-        RightOperandSource::DirectSource(_) => return Err("no second operand allowed!".to_owned()),
-        RightOperandSource::RangeSource(_) => return Err("no second operand allowed!".to_owned()),
+        RightOperandSource::DirectSource(_) => return Err("No second operand allowed!".to_owned()),
+        RightOperandSource::RangeSource(_) => return Err("No second operand allowed!".to_owned()),
         RightOperandSource::NamedAccessSource(_) => {},
         RightOperandSource::Empty => {
             match left {
@@ -618,7 +626,7 @@ pub fn operator_int_bits_width(buffer: &mut Number, _: LeftOperandSource, right:
             buffer.convert(NumberType::Integer, buffer.signed(), number.to_usize());
             Ok((Historical, None))
         }
-        _ => return Err("Bit width is necessary argument".to_owned())
+        _ => return Err("Bit width is a necessary argument".to_owned())
     }
 }
 
@@ -630,7 +638,7 @@ pub fn operator_count(buffer: &mut Number, left: LeftOperandSource, right: Right
                     let count = match second_operand.to_u128() {
                         0 => buffer.range_count_bits(target_range, 0),
                         1 => buffer.range_count_bits(target_range, 1),
-                        _ => return Err("count only 1 and 0".to_owned())
+                        _ => return Err("Counting only 1 and 0".to_owned())
                     };
                     return Ok((Nonhistorical, Some(count.to_string())));
                 }
@@ -638,7 +646,7 @@ pub fn operator_count(buffer: &mut Number, left: LeftOperandSource, right: Right
             }
         }
         RightOperandSource::RangeSource(_) => {
-            return Err("count does not read range, specify 1 or 0".to_owned());
+            return Err("Count operation does not read range, specify 1 or 0".to_owned());
         }
         RightOperandSource::NamedAccessSource(_) => {},
         RightOperandSource::Empty => {
@@ -686,7 +694,7 @@ pub fn operator_greater(buffer: &mut Number, left: LeftOperandSource, right: Rig
             }
         }
         RightOperandSource::NamedAccessSource(_) => {},
-        RightOperandSource::Empty => return Err("no second operand!".to_owned())
+        RightOperandSource::Empty => return Err("No second operand!".to_owned())
     }
     Ok((Historical, None))
 }
@@ -714,7 +722,7 @@ pub fn operator_less(buffer: &mut Number, left: LeftOperandSource, right: RightO
             }
         }
         RightOperandSource::NamedAccessSource(_) => {},
-        RightOperandSource::Empty => return Err("no second operand!".to_owned())
+        RightOperandSource::Empty => return Err("No second operand!".to_owned())
     }
     Ok((Historical, None))
 }
@@ -742,14 +750,14 @@ pub fn operator_equals(buffer: &mut Number, left: LeftOperandSource, right: Righ
             }
         }
         RightOperandSource::NamedAccessSource(_) => {},
-        RightOperandSource::Empty => return Err("no second operand!".to_owned())
+        RightOperandSource::Empty => return Err("No second operand!".to_owned())
     }
     Ok((Historical, None))
 }
 
 pub fn operator_swap(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
-        RightOperandSource::DirectSource(_) => return Err("cannot swap with rvalue!".to_owned()),
+        RightOperandSource::DirectSource(_) => return Err("Cannot swap with rvalue!".to_owned()),
         RightOperandSource::RangeSource(source_range) => {
             match left {
                 LeftOperandSource::RangeSource(target_range) => {
@@ -762,26 +770,26 @@ pub fn operator_swap(buffer: &mut Number, left: LeftOperandSource, right: RightO
             }
         }
         RightOperandSource::NamedAccessSource(_) => {},
-        RightOperandSource::Empty => return Err("no second operand!".to_owned())
+        RightOperandSource::Empty => return Err("No second operand!".to_owned())
     }
     Ok((Historical, None))
 }
 
 pub fn operator_negate(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     if let LeftOperandSource::NamedAccessSource(_) = left {
-        return Err("only [max:min] range is acceptable for negation.".to_owned());
+        return Err("Only [max:min] range is acceptable for negation.".to_owned());
     }
     if let LeftOperandSource::RangeSource(range) = left {
         if let BitsIndex::HighestBit = range.0 {
             if let BitsIndex::LowestBit = range.1 {} else {
-                return Err("right bound of range can be only lowest index.".to_owned());
+                return Err("Right bound of range can be only lowest index.".to_owned());
             }
         } else {
-            return Err("left bound of range can be only highest index.".to_owned());
+            return Err("Left bound of range can be only highest index.".to_owned());
         }
     }
     if let RightOperandSource::Empty = right {} else {
-        return Err("negation takes no second operand.".to_owned());
+        return Err("Negation takes no second operand.".to_owned());
     }
     buffer.negate();
     Ok((Historical, None))

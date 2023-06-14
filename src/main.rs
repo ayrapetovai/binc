@@ -39,9 +39,9 @@ use std::process::exit;
 
 fn print_ui(number: &Number) {
     let line = format!(
-        "{3:>0$} {4:>1$} {5:>2$}",
-        number.number_of_digits_in_radix(16) + 2, number.number_of_digits_in_radix(10) + 2, number.number_of_digits_in_radix(8) + 2,
-        number.to_string_prefixed(16), number.to_string_prefixed(10), number.to_string_prefixed(8)
+        "{4:>0$} {5:>1$} {6:>2$} {7:>3$}",
+        3, number.number_of_digits_in_radix(16) + 2, number.number_of_digits_in_radix(10) + 2, number.number_of_digits_in_radix(8) + 2,
+        number.to_string_as_char(), number.to_string_prefixed(16), number.to_string_prefixed(10), number.to_string_prefixed(8)
     );
 
     println!();

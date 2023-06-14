@@ -19,9 +19,9 @@ $ binc                                           # shell's command line
 (binc)                                           # binc's prompt
 ```
 
-"bit indexes" intended to help user to understand what index each bit has. "*the number* in binary radix" is split up into a bytes and half-bytes 0/1 sequences.
+"bit indexes" intended to help user to understand what index each bit has. "*the number* in binary radix" is split up into a bytes and half-bytes sequences of 1 and 0.
 
-On the line called "*the number* in binary radix" there is a '+' on the left, it represents that the number is positive, '-' for negative number.
+On the line called "*the number* in binary radix" there is a '+' on the left, it represents that the number is positive, `-` represents a negative number.
 
 The '  0' under the '+' means carry, it is a state of the "carry bit".
 Carry bit indicates whether the overflow occurred after operation or not.
@@ -37,13 +37,13 @@ Command syntax is:
 , where *X* is lvalue, a **range** only; *Y* is rvalue operand, a number or **range**; *operator* is some math operation, like `>>` or `+`; *command* is literal command.
 Spaces are ignored like in Fortran ☺️  
 **number** is a numeric literal with prefixes 0x, 0d, 0b, 0h(0x) to specify corresponding radix. Can be prefixed with minus to make it negative.  
-First operand *X* may be omitted, by default it is range `[]` - *the whole number*, `[i:j]` - bits from `j` to `i`, j <= i, range `[i]` operates on exactly i-th bit. Half-range `[i:]` means from i-th bit to the lowest bit, `[:i]` means from the highest bit to the i-th bit.  
-If *operator* is omitted than binc do assignment `=` operation by default. To omit an operator, *X* also must be omitted. Only *Y* operand is necessary. If one typed just 123, the number 123 will be set.  
+First operand *X* may be omitted, by default it is range `[]` - *the whole number*, `[i:j]` - bits from `j` to `i`, j <= i, range `[i]` operates on exactly i-th bit. Half-range `[i:]` means from i-th bit inclusive to the lowest bit, `[:i]` means from the highest bit to the i-th bit inclusive. The *Y* operand also can be a character written in single quotes, like `'x'`, unicode is supported, but emoji aren't. To input `'` type `'''`.
+If *operator* is omitted than binc do assignment `=` operation by default. To omit an operator, *X* also must be omitted. Only *Y* operand is necessary. If one typed just 123 without specifying an operator, the number 123 will be set.  
 Empty command line repeats last command.
 
 binc knows `help` command with no arguments, which will print all possible commands, operators and syntax tips.
 
-To quit binc send `[CTRL+C]`, `[CTRL+D]` or press `[CTRL+Q]`.
+To quit binc press `[CTRL+C]`, `[CTRL+D]` or `[CTRL+Q]`.
 
 ## Binary Operators
 | operator | description | operator | description                              |
@@ -82,13 +82,15 @@ To quit binc send `[CTRL+C]`, `[CTRL+D]` or press `[CTRL+Q]`.
 ## Examples
 `(binc) 42` sets *the number* to 42.  
 `(binc) +1` add 1 to *the number*.  
-`(binc) -1` set all bits to 1.  
-`(binc) &0` set all bits to 0.  
+`(binc) -1` set all bits to 1 if number was 0. Actually subtracts -1.  
+`(binc) &0` bitwise conjunction of bits of *the number* and 0, set all bits to 0.  
 `(binc) /2;>>1` divides *the number* by 2 and shifts right one bit.  
 `(binc) [31]=1` set 31-st bit of *the number* to 1, the number becomes negative.    
 `(binc) [31:24] cnt 0` count zero bits in range from 24-th bit to 31-st bit inclusive.  
 `(binc) [15:4] printf x` prints bits from 4 to 15 inclusive as hexadecimal (not ready).  
 `(binc) [15:0] <> [31:16]` swap values of lower and higher bits of the number.  
+`(binc) '愛'` set a kanji code to *the number*.  
+`(binc) !` do arithmetic negation on *the number*. X becomes -X.  
 `$ binc -e '-1;[7:0]&0'` sets negative number (all bits become 1), than nulls first byte, prints.  
 `$ binc -e '123' -fx` initialize with 123, prints as hexadecimal.
 
