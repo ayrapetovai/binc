@@ -632,19 +632,17 @@ pub fn operator_int_bits_width(buffer: &mut Number, _: LeftOperandSource, right:
 
 pub fn operator_count(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
-        RightOperandSource::DirectSource(second_operand) => {
-            match left {
-                LeftOperandSource::RangeSource(target_range) => {
-                    let count = match second_operand.to_u128() {
-                        0 => buffer.range_count_bits(target_range, 0),
-                        1 => buffer.range_count_bits(target_range, 1),
-                        _ => return Err("Counting only 1 and 0".to_owned())
-                    };
-                    return Ok((Nonhistorical, Some(count.to_string())));
-                }
-                _ => todo!("not yet implemented for float and fixed")
+        RightOperandSource::DirectSource(second_operand) => match left {
+            LeftOperandSource::RangeSource(target_range) => {
+                let count = match second_operand.to_u128() {
+                    0 => buffer.range_count_bits(target_range, 0),
+                    1 => buffer.range_count_bits(target_range, 1),
+                    _ => return Err("Counting only 1 and 0".to_owned())
+                };
+                return Ok((Nonhistorical, Some(count.to_string())));
             }
-        }
+            _ => todo!("not yet implemented for float and fixed")
+        },
         RightOperandSource::RangeSource(_) => {
             return Err("Count operation does not read range, specify 1 or 0".to_owned());
         }

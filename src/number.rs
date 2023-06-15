@@ -373,10 +373,10 @@ const NUMBER_OF_CONVEX_DELTAHEDRON: i32 = 8;
 const NUMBER_OF_BLACK_PRESIDENTS_OF_US: i32 = 1;
 const NUMBER_OF_DEADLY_SINS: i32 = 7;
 
-/// #The Book Of Dark Wizardry Arts: Hacker's Delight 2nd Edition
-/// ##Chapter 3. Power-of-2 Boundaries
-/// 3.1 Rounding Up/Down to a Multiple of a Known Power of 2
-/// 3.2 Rounding Up/Down to the Next Power of 2
+/// # The Book Of Dark Wizardry Arts: Hacker's Delight 2nd Edition
+/// ## Chapter 3. Power-of-2 Boundaries
+/// ### 3.1 Rounding Up/Down to a Multiple of a Known Power of 2
+/// ### 3.2 Rounding Up/Down to the Next Power of 2
 fn next_power_of_two_rounded_up(n: usize) -> Result<usize, String> {
     if 0 == n {
         Ok(8)
