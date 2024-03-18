@@ -115,18 +115,21 @@ impl ParsingIterator {
         }
         self.current()
     }
-    pub fn rewind_n(mut self, n: usize) -> Self {
+    pub fn rewind(mut self, n: usize, skip_whitespaces: bool) -> Self {
         let mut skip_counter = 0;
         while self.offset < self.source.len() && skip_counter < n {
             self.offset += 1;
-            if self.offset < self.source.len() && !(self.source[self.offset]).is_whitespace() {
+            if self.offset < self.source.len() && !(skip_whitespaces && (self.source[self.offset]).is_whitespace()) {
                 skip_counter += 1;
             }
         }
         self
     }
-    pub fn rewind(self) -> Self {
-        self.rewind_n(1)
+    pub fn rewind_n(self, n: usize) -> Self {
+        self.rewind(n, true)
+    }
+    pub fn rewind_n_include_whitespaces(self, n: usize) -> Self {
+       self.rewind(n, false)
     }
     fn rest(&self) -> &[char] {
         &self.source[self.offset..]
@@ -160,12 +163,12 @@ fn syntax_range(it: ParsingIterator) -> (ParsingIterator, BitsIndexRange) {
     };
     let (it_after_index, range_right_index) = if let Some(c) = it_after_index.current() {
         if c == ':' {
-            match syntax_index(it_after_index.rewind()) {
+            match syntax_index(it_after_index.rewind_n(1)) {
                 (it, Some(i)) => (it, BitsIndex::IndexedBit(i)),
                 (it, None) => (it, BitsIndex::LowestBit)
             }
         } else {
-            (it_after_index, range_left_index)
+            (it_after_index, BitsIndex::LowestBit)
         }
     } else {
         (it_after_index, BitsIndex::LowestBit)
@@ -179,10 +182,10 @@ fn syntax_accessor(it: ParsingIterator) -> Result<(ParsingIterator, Option<BitsI
     match it.current() {
         Some(c) => match c {
             '[' => {
-                let (current_it, range) = syntax_range(it.rewind());
+                let (current_it, range) = syntax_range(it.rewind_n(1));
                 if let Some(c) = current_it.current() {
                     if c == ']' {
-                        Ok((current_it.rewind(), Some(range)))
+                        Ok((current_it.rewind_n(1), Some(range)))
                     } else {
                         Err("Accessor [] is not closed with ']'".to_owned())
                     }
@@ -202,17 +205,16 @@ fn syntax_letter(it: ParsingIterator) -> Result<(ParsingIterator, RightOperandSo
     match it.current() {
         Some(c) => match c {
             '\'' => {
-                // TODO support emoji, the take more then 1 byte, need to check
-                //  if the char ' are parts of emoji
+                // TODO support for emojis, which take more then 1 byte, need to check
+                //  if the char ' is a part of emoji
                 // TODO add support for unicode literals like '\x03BB' or '\u1132'
-                // FIXME Space char ' ' is skipped, fix it
-                let current_it = it.rewind();
+                let current_it = it.rewind_n_include_whitespaces(1);
                 if let Some(c) = current_it.current() {
                     let number = Number::from_char(c).unwrap();
-                    let current_it = current_it.rewind();
+                    let current_it = current_it.rewind_n(1);
                     if let Some(c) = current_it.current() {
                         if c == '\'' {
-                            Ok((current_it.rewind(), RightOperandSource::DirectSource(number)))
+                            Ok((current_it.rewind_n(1), RightOperandSource::DirectSource(number)))
                         } else {
                             Err("Letter is not closed with '\\'', only one letter allowed".to_owned())
                         }
@@ -251,20 +253,20 @@ fn syntax_operator(it: ParsingIterator) -> (ParsingIterator, Option<Operator>) {
         Some('>') if it.match_from_current(">>") => (it.rewind_n(2), Some(operator_signed_shift_right as Operator)),
         Some('<') if it.match_from_current("<<") => (it.rewind_n(2), Some(operator_signed_shift_left as Operator)),
         Some('=') if it.match_from_current("==") => (it.rewind_n(2), Some(operator_equals as Operator)),
-        Some('?') => (it.rewind(), Some(operator_show_help as Operator)),
-        Some('=') => (it.rewind(), Some(operator_assign as Operator)),
-        Some('+') => (it.rewind(), Some(operator_sum as Operator)),
-        Some('-') => (it.rewind(), Some(operator_sub as Operator)),
-        Some('*') => (it.rewind(), Some(operator_mul as Operator)),
-        Some('/') => (it.rewind(), Some(operator_div as Operator)),
-        Some('%') => (it.rewind(), Some(operator_mod as Operator)),
-        Some('>') => (it.rewind(), Some(operator_greater as Operator)),
-        Some('<') => (it.rewind(), Some(operator_less as Operator)),
-        Some('^') => (it.rewind(), Some(operator_xor as Operator)),
-        Some('&') => (it.rewind(), Some(operator_and as Operator)),
-        Some('|') => (it.rewind(), Some(operator_or as Operator)),
-        Some('~') => (it.rewind(), Some(operator_not as Operator)),
-        Some('!') => (it.rewind(), Some(operator_negate as Operator)),
+        Some('?') => (it.rewind_n(1), Some(operator_show_help as Operator)),
+        Some('=') => (it.rewind_n(1), Some(operator_assign as Operator)),
+        Some('+') => (it.rewind_n(1), Some(operator_sum as Operator)),
+        Some('-') => (it.rewind_n(1), Some(operator_sub as Operator)),
+        Some('*') => (it.rewind_n(1), Some(operator_mul as Operator)),
+        Some('/') => (it.rewind_n(1), Some(operator_div as Operator)),
+        Some('%') => (it.rewind_n(1), Some(operator_mod as Operator)),
+        Some('>') => (it.rewind_n(1), Some(operator_greater as Operator)),
+        Some('<') => (it.rewind_n(1), Some(operator_less as Operator)),
+        Some('^') => (it.rewind_n(1), Some(operator_xor as Operator)),
+        Some('&') => (it.rewind_n(1), Some(operator_and as Operator)),
+        Some('|') => (it.rewind_n(1), Some(operator_or as Operator)),
+        Some('~') => (it.rewind_n(1), Some(operator_not as Operator)),
+        Some('!') => (it.rewind_n(1), Some(operator_negate as Operator)),
         _ => (it, None)
     }
 }
@@ -273,7 +275,7 @@ fn syntax_negative_number(it: ParsingIterator) -> Result<(ParsingIterator, Right
     match it.current() {
         Some(c) => match c {
             '1'..='9' => syntax_number(it, 10, true),
-            '0' => syntax_radix_number(it.rewind(), true),
+            '0' => syntax_radix_number(it.rewind_n(1), true),
             _ => Err("Bad number syntax".to_owned())
         }
         None => Err("Bad negative number syntax".to_owned())
@@ -291,8 +293,8 @@ fn syntax_rvalue(it: ParsingIterator) -> Result<(ParsingIterator, RightOperandSo
                 Err(message) => Err(message)
             },
             '1'..='9' => syntax_number(it, 10, false),
-            '0' => syntax_radix_number(it.rewind(), false),
-            '-' => syntax_negative_number(it.rewind()),
+            '0' => syntax_radix_number(it.rewind_n(1), false),
+            '-' => syntax_negative_number(it.rewind_n(1)),
             '\'' => syntax_letter(it),
             _ => Err(format!("number or range had been expected, but '{}' was found", String::from_iter(it.rest())).to_owned())
         }
@@ -304,18 +306,18 @@ fn syntax_radix_number(it: ParsingIterator, is_negative: bool) -> Result<(Parsin
     trace!("syntax_radix_number: with current symbol '{:?}'", it.current());
     match it.current() {
         Some(c) => match c {
-            'b' | 'B' => syntax_number(it.rewind(), 2, is_negative),
-            'o' | 'O' => syntax_number(it.rewind(), 8, is_negative),
-            'd' | 'D' => syntax_number(it.rewind(), 10, is_negative),
-            'h' | 'H' | 'x' | 'X' => syntax_number(it.rewind(), 16, is_negative),
+            'b' | 'B' => syntax_number(it.rewind_n(1), 2, is_negative),
+            'o' | 'O' => syntax_number(it.rewind_n(1), 8, is_negative),
+            'd' | 'D' => syntax_number(it.rewind_n(1), 10, is_negative),
+            'h' | 'H' | 'x' | 'X' => syntax_number(it.rewind_n(1), 16, is_negative),
             '(' =>
-                if let (it_after_arbitrary_radix, Some(radix)) = syntax_index(it.rewind()) {
+                if let (it_after_arbitrary_radix, Some(radix)) = syntax_index(it.rewind_n(1)) {
                     match it_after_arbitrary_radix.current() {
                         Some(')') => {
                             if radix > 37 { // length('0'..='9') + length('a'..='z')
                                 return Err(format!("Arbitrary radix is too big - {}, must be small enough to write numbers in it with '0'..'9' + 'a'..'z'", { radix }))
                             }
-                            syntax_number(it_after_arbitrary_radix.rewind(), radix as u32, is_negative)
+                            syntax_number(it_after_arbitrary_radix.rewind_n(1), radix as u32, is_negative)
                         }
                         _ => Err("Arbitrary radix must be closed with ')'".to_owned())
                     }
@@ -475,7 +477,7 @@ fn parsing_iterator_skip_whitespaces() {
     let pat = "[0]=1".as_bytes();
     assert_eq!(Some(*pat.first().unwrap() as char), it.current());
     for i in 1..pat.len() {
-        it = it.rewind();
+        it = it.rewind_n(1);
         assert_eq!(Some(pat[i] as char), it.current());
     }
 }
@@ -551,5 +553,72 @@ fn syntax_letter_test() {
             panic!("syntax_letter() failed to detect that there are no chars")
         }
         Err(_) => {} // OK
+    }
+
+    match syntax_letter(ParsingIterator::from("  ' '  ").unwrap()) {
+        Ok((_, RightOperandSource::DirectSource(number))) => {
+            if !number.to_string_as_char().eq("' '") {
+                panic!("syntax_letter() cannot parse space character literal")
+            }
+        }
+        Ok((_, _)) => {
+            panic!("syntax_letter() wrong parsing")
+        }
+        Err(_) => {
+            panic!("syntax_letter() failed to detect that there are several chars")
+        }
+    }
+}
+
+#[test]
+fn syntax_accessor_test() {
+    match syntax_accessor(ParsingIterator::from("[]").unwrap()) {
+        Ok((_, Some(range))) => {
+            if !(range.0 == BitsIndex::HighestBit && range.1 == BitsIndex::LowestBit) {
+                panic!("syntax_accessor() parses wrong range")
+            }
+        }
+        Ok(_) => panic!("syntax_accessor() cannot parse [] properly"),
+        Err(_) => panic!("syntax_accessor() cannot parse")
+    }
+
+    match syntax_accessor(ParsingIterator::from("[:]").unwrap()) {
+        Ok((_, Some(range))) => {
+            if !(range.0 == BitsIndex::HighestBit && range.1 == BitsIndex::LowestBit) {
+                panic!("syntax_accessor() parses wrong range")
+            }
+        }
+        Ok(_) => panic!("syntax_accessor() cannot parse [:] properly"),
+        Err(_) => panic!("syntax_accessor() cannot parse")
+    }
+
+    match syntax_accessor(ParsingIterator::from("[3:5]").unwrap()) {
+        Ok((_, Some(BitsIndexRange(BitsIndex::IndexedBit(left), BitsIndex::IndexedBit(right))))) => {
+            if !(left == 3 && right == 5) {
+                panic!("syntax_accessor() parses wrong range")
+            }
+        }
+        Ok(_) => panic!("syntax_accessor() cannot parse [i:j] properly"),
+        Err(_) => panic!("syntax_accessor() cannot parse")
+    }
+
+    match syntax_accessor(ParsingIterator::from("[3:]").unwrap()) {
+        Ok((_, Some(BitsIndexRange(BitsIndex::IndexedBit(left), BitsIndex::LowestBit)))) => {
+            if !(left == 3) {
+                panic!("syntax_accessor() parses wrong range")
+            }
+        }
+        Ok(_) => panic!("syntax_accessor() cannot parse [i:] properly"),
+        Err(_) => panic!("syntax_accessor() cannot parse")
+    }
+
+    match syntax_accessor(ParsingIterator::from("[:5]").unwrap()) {
+        Ok((_, Some(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::IndexedBit(right))))) => {
+            if !(right == 5) {
+                panic!("syntax_accessor() parses wrong range")
+            }
+        }
+        Ok(_) => panic!("syntax_accessor() cannot parse [:j] properly"),
+        Err(_) => panic!("syntax_accessor() cannot parse")
     }
 }

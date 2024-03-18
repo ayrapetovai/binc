@@ -20,7 +20,7 @@ use std::mem::size_of;
 use colored::{Colorize, Color};
 use rand::prelude::SliceRandom;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum BitsIndex {
     HighestBit,
     LowestBit,
