@@ -167,6 +167,8 @@ fn syntax_range(it: ParsingIterator) -> (ParsingIterator, BitsIndexRange) {
                 (it, Some(i)) => (it, BitsIndex::IndexedBit(i)),
                 (it, None) => (it, BitsIndex::LowestBit)
             }
+        } else if let (Some(']'), BitsIndex::IndexedBit(_))  = (it_after_index.current(), range_left_index) {
+            (it_after_index, range_left_index)
         } else {
             (it_after_index, BitsIndex::LowestBit)
         }
@@ -575,7 +577,7 @@ fn syntax_accessor_test() {
     match syntax_accessor(ParsingIterator::from("[]").unwrap()) {
         Ok((_, Some(range))) => {
             if !(range.0 == BitsIndex::HighestBit && range.1 == BitsIndex::LowestBit) {
-                panic!("syntax_accessor() parses wrong range")
+                panic!("syntax_accessor() parses wrong range, got {:?}", range)
             }
         }
         Ok(_) => panic!("syntax_accessor() cannot parse [] properly"),
@@ -589,6 +591,16 @@ fn syntax_accessor_test() {
             }
         }
         Ok(_) => panic!("syntax_accessor() cannot parse [:] properly"),
+        Err(_) => panic!("syntax_accessor() cannot parse")
+    }
+
+    match syntax_accessor(ParsingIterator::from("[4]").unwrap()) {
+        Ok((_, Some(BitsIndexRange(BitsIndex::IndexedBit(left), BitsIndex::IndexedBit(right))))) => {
+            if !(left == 4 && right == 4) {
+                panic!("syntax_accessor() parses wrong range")
+            }
+        }
+        Ok(_) => panic!("syntax_accessor() cannot parse [i] properly"),
         Err(_) => panic!("syntax_accessor() cannot parse")
     }
 
