@@ -92,7 +92,8 @@ To quit binc press `[CTRL+C]`, `[CTRL+D]` or `[CTRL+Q]`.
 `(binc) '愛'` set a kanji code to *the number*.  
 `(binc) !` do arithmetic negation on *the number*. X becomes -X.  
 `$ binc -e '-1;[7:0]&0'` sets negative number (all bits become 1), than nulls first byte, prints.  
-`$ binc -e '123' -fx` initialize with 123, prints as hexadecimal.
+`$ binc -e '123' -fx` initialize with 123, print as hexadecimal.
+`$ binc -e '123' -p` initialize with 123, print as binary with 32 digits, padded from left with zeroes.
 
 ## Build and Install
 [Install](https://doc.rust-lang.org/cargo/getting-started/installation.html) Rust, compile and run:
