@@ -132,15 +132,19 @@ fn interactive_routine(history_size: usize) {
     }
 }
 
-fn not_interactive_routine(commands: &str, format: &str) {
+fn not_interactive_routine(commands: &str, format: &str, prepend0: bool) -> String {
     let mut main_buffer = Number::new(NumberType::Integer, true, 32).unwrap();
 
     trace!("interactive: got commands: '{}'", commands);
     let command_list = commands.split(";").collect::<Vec<_>>();
+    if (command_list.is_empty()) {
+        debug!("nothing to do");
+        exit(1);
+    }
     for command in command_list {
         if command.is_empty() {
-            debug!("nothing to do");
-            exit(0);
+            debug!("skipping empty command");
+            continue;
         }
         match generate_executor(command) {
             Ok(executor) => {
@@ -170,51 +174,54 @@ fn not_interactive_routine(commands: &str, format: &str) {
             }
         }
     }
-    trace!("command executing is done, format is '{}'", format);
+    trace!("command executing is done, format is '{}', prepend is '{}'", format, prepend0);
     // FIXME refactor format parsing
     let output = match format {
-        "0x" => main_buffer.to_string(16, true),
-        "x" => main_buffer.to_string(16, false),
-        "0d" => main_buffer.to_string(10, true),
-        "d" => main_buffer.to_string(10, false),
-        "0o" => main_buffer.to_string(8, true),
-        "o" => main_buffer.to_string(8, false),
-        "0b" => main_buffer.to_string(2, true),
-        "b" => main_buffer.to_string(2, false),
+        "0x" | "0h" => main_buffer.to_string(16, true, prepend0),
+        "x" | "h" => main_buffer.to_string(16, false, prepend0),
+        "0d" => main_buffer.to_string(10, true, prepend0),
+        "d" => main_buffer.to_string(10, false, prepend0),
+        "0o" => main_buffer.to_string(8, true, prepend0),
+        "o" => main_buffer.to_string(8, false, prepend0),
+        "0b" => main_buffer.to_string(2, true, prepend0),
+        "b" => main_buffer.to_string(2, false, prepend0),
         _ => "".to_owned()
     };
-    if !output.is_empty() {
-        println!("{}", output);
-    }
+    output
 }
 
 fn main() {
     // TODO make struct with parameters https://github.com/clap-rs/clap
     // TODO make a cli.yml (https://docs.rs/clap/2.33.3/clap/), and use it like this: let yaml = load_yaml!("cli.yml"); let matches = App::from_yaml(yaml).get_matches();
     let matches = command!()
-        .version("1")
+        .version("2")
         .arg(Arg::new("v")
             .short('v')
             .multiple_occurrences(true)// multiple_values?
-            .help("Sets the level of verbosity. More 'v's, more verbosity. Four 'v' are used for the most verbose output"))
+            .help("Sets the level of verbosity. More 'v's, more verbosity. Four 'v' are used for the most verbose logging."))
         .arg(Arg::new("history")
             .long("history")
             .short('h')
             .default_value("100")
             .takes_value(true)
-            .help("Set the size of the command history"))
+            .help("Sets the size of the command history."))
         .arg(Arg::new("expression")
             .long("expression")
             .short('e')
             .takes_value(true)
             .allow_hyphen_values(true)
-            .help("commands to execute, separated by ';'"))
+            .help("Enables batch mode. Commands to execute, separated by ';' are mandatory"))
         .arg(Arg::new("format") // TODO this functionality must be implemented in `printf` operator
             .long("format")
             .short('f')
             .takes_value(true)
-            .default_value("b")
-            .help("b -binary, o - octal, d - decimal, h - hexadecimal. 0f - with prefix, where f is (b|o|d|h)+"))
+            .default_value("0b")
+            .help("Specifies prefix for output: b -binary, o - octal, d - decimal, h - hexadecimal. 0f - with prefix, where f is (b|o|d|h)+."))
+        .arg(Arg::new("prepend0")
+            .long("prepend0")
+            .short('p')
+            .takes_value(false)
+            .help("If given the output will be prepended with zeroes."))
         .get_matches();
 
     let verbosity_level = match matches.occurrences_of("v") {
@@ -240,10 +247,26 @@ fn main() {
     match matches.value_of("expression") {
         Some(commands) => {
             let format = matches.value_of("format").unwrap();
-            not_interactive_routine(commands, format);
+            let prepend0 = matches.is_present("prepend0");
+            let output = not_interactive_routine(commands, format, prepend0);
+            if !output.is_empty() {
+                println!("{}", output);
+            }
         },
         None => {
             interactive_routine(history_size);
         }
     }
+}
+
+#[test]
+pub fn empty_commands_dont_cause_any_errors() {
+    assert!(not_interactive_routine("", "", false).is_empty());
+    assert!(not_interactive_routine(";", "", false).is_empty());
+    assert!(not_interactive_routine(";;", "", false).is_empty());
+    assert!(not_interactive_routine("1", "", false).is_empty());
+    assert_eq!("0", not_interactive_routine(";;;", "d", false));
+    assert_eq!("1", not_interactive_routine("1", "d", false));
+    assert_eq!("1", not_interactive_routine("1;", "d", false));
+    assert_eq!("1", not_interactive_routine("1;", "d", false));
 }

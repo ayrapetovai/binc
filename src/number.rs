@@ -310,14 +310,16 @@ impl Number {
         }
     }
     pub fn to_string_prefixed(&self, radix: u32) -> String {
-        self.to_string(radix, true)
+        self.to_string(radix, true, false)
     }
-    pub fn to_string(&self, radix: u32, with_prefix: bool) -> String {
+    pub fn to_string(&self, radix: u32, with_prefix: bool, prepend0: bool) -> String {
         let value = if self.is_negative() {
             !(self.buffer - 1) & mask_n_ones_from_right(self.effective_bits - 1)
         } else {
             self.buffer
         };
+
+        // TODO formatting of arbitrary radix
         let mut formatted = match radix {
             2 => format!("{:b}", value).to_owned(),
             8 => format!("{:o}", value).to_owned(),
@@ -325,6 +327,17 @@ impl Number {
             16 => format!("{:x}", value).to_owned(),
             _ => panic!("cannot translate to number of radix {}", radix)
         };
+
+        if prepend0 {
+            let max_digits_to_represent_the_number = self.number_of_digits_in_radix(radix) - 1;
+            let zeroes_count = max_digits_to_represent_the_number - formatted.len();
+            trace!("padding {} zeroes to {} digits of '{}' to make {} digits", zeroes_count, formatted.len(), formatted, max_digits_to_represent_the_number);
+
+            for _ in 0..zeroes_count {
+                formatted.insert_str(0, "0");
+            }
+        }
+
         if with_prefix {
             match radix {
                 2 => formatted.insert_str(0, "0b"),
@@ -334,6 +347,7 @@ impl Number {
                 _ => panic!("cannot choose prefix for radix {}", radix)
             }
         }
+
         if self.is_negative() {
             formatted.insert(0, '-');
         }
