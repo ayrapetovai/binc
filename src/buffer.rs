@@ -21,17 +21,17 @@ use colored::{Colorize, Color};
 use rand::prelude::SliceRandom;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum BitsIndex {
+pub enum BitIndex {
     HighestBit,
     LowestBit,
     IndexedBit(usize)
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct BitsIndexRange(pub BitsIndex, pub BitsIndex);
+pub struct BitsIndexRange(pub BitIndex, pub BitIndex);
 
 #[derive(Debug, Copy, Clone)]
-pub enum NumberType {
+pub enum BincBufferType {
     Integer,
     Float,
     Fixed,
@@ -40,50 +40,54 @@ pub enum NumberType {
 // TODO user struct BitUint from crate 'num-bigint'
 type BufferType = u128;
 
-// TODO implement std::str::FromStr
 #[derive(Debug, Clone)]
-pub struct Number {
+pub struct BincBuffer {
     buffer: BufferType, // only right "effective_bits" are used
     effective_bits: usize,
-    number_type: NumberType,
+    buffer_type: BincBufferType,
     is_signed: bool,
     carry: bool,
 }
 
-impl Number {
-    pub fn new(number_type: NumberType, is_signed: bool, size: usize) -> Result<Self, String> {
+impl BincBuffer {
+
+    pub fn new(buffer_type: BincBufferType, is_signed: bool, size: usize) -> Result<Self, String> {
         match next_power_of_two_rounded_up(size) {
             Ok(size) =>
                 Ok(Self {
                     buffer: 0u128,
                     effective_bits: size,
-                    number_type,
+                    buffer_type,
                     is_signed,
                     carry: false,
                 }),
             Err(message) => Err(message)
         }
     }
+
     pub fn from_char(c: char) -> Result<Self, String> {
         Ok(
             Self {
                 buffer: c.into(),
                 effective_bits: c.len_utf8() * 8,
-                number_type: NumberType::Integer,
+                buffer_type: BincBufferType::Integer,
                 is_signed: false,
                 carry: false,
             }
         )
     }
+
     pub fn from_str(number_literal: &str, radix: u32) -> Result<Self, String> {
         let radix= radix as u128;
         trace!("Number::from: parsing literal '{}', radix {}", number_literal, radix);
         let is_negative = number_literal.starts_with("-");
+
         // TODO floating, fixed
         let mut it = number_literal.chars();
         if is_negative {
             it.next();
         }
+
         // TODO use u128::from_str_radix() or BigUint::from_str_radix(...)
         let mut buffer = 0u128;
         while let Some(c) = it.next() {
@@ -107,27 +111,29 @@ impl Number {
             Ok(s) => s,
             Err(m) => return Err(m)
         };
+
         if is_negative && buffer != 0 {
             trace!("Number::from: negate {}", buffer);
             buffer = !buffer;
             buffer += 1;
         }
+
         Ok(
             Self {
                 buffer: buffer & mask_n_ones_from_right(length_in_bits),
                 effective_bits: length_in_bits,
-                number_type: if number_literal.contains(".") { NumberType::Float } else { NumberType::Integer },
+                buffer_type: if number_literal.contains(".") { BincBufferType::Float } else { BincBufferType::Integer },
                 is_signed: is_negative,
                 carry: false,
             }
         )
     }
 
-    fn with_range_do_arithmetics(&mut self, range: BitsIndexRange, arithmetica: Box<dyn Fn(u128) -> u128>) {
+    fn with_range_do_arithmetics(&mut self, range: BitsIndexRange, arithmetic_operation: Box<dyn Fn(u128) -> u128>) {
         let high_order_bit_index = self.resolve_bit_index(range.0);
         let low_order_bit_index = self.resolve_bit_index(range.1);
-        self.carry = false; // TODO
-        let mul = arithmetica(self.get_bits(range));
+        self.carry = false; // TODO set carry in compliance to arithmetic operation
+        let mul = arithmetic_operation(self.get_bits(range));
         self.buffer = self.buffer & !mask_from_bit_to_bit(high_order_bit_index, low_order_bit_index);
         self.buffer = self.buffer | ((mul & mask_n_ones_from_right(high_order_bit_index - low_order_bit_index + 1)) << low_order_bit_index);
         self.buffer = self.buffer & mask_n_ones_from_right(self.effective_bits);
@@ -161,8 +167,8 @@ impl Number {
     /// exp(ln(x)) = exp(ln(a)/n);
     /// x = exp(ln(a)/n);
     pub fn range_root_bits(&mut self, range: BitsIndexRange, power: u128) {
-        match self.number_type {
-            NumberType::Integer => self.with_range_do_arithmetics(range, Box::new(move |a: u128| ((a as f64).ln() / power as f64).exp() as u128)),
+        match self.buffer_type {
+            BincBufferType::Integer => self.with_range_do_arithmetics(range, Box::new(move |a: u128| ((a as f64).ln() / power as f64).exp() as u128)),
             _ => todo!("root operation for float and fixed is not implemented")
         }
     }
@@ -170,18 +176,23 @@ impl Number {
     pub fn range_mod_bits(&mut self, range: BitsIndexRange, divisor: u128) {
         self.with_range_do_arithmetics(range, Box::new(move |a: u128| a.wrapping_rem(divisor)));
     }
+
     pub fn range_xor_bits(&mut self, range: BitsIndexRange, second_operand: u128) {
         self.with_range_do_arithmetics(range, Box::new(move |a: u128| a ^ second_operand));
     }
+
     pub fn range_and_bits(&mut self, range: BitsIndexRange, second_operand: u128) {
         self.with_range_do_arithmetics(range, Box::new(move |a: u128| a & second_operand));
     }
+
     pub fn range_or_bits(&mut self, range: BitsIndexRange, second_operand: u128) {
         self.with_range_do_arithmetics(range, Box::new(move |a: u128| a | second_operand));
     }
+
     pub fn signed_shift_left(&mut self, range: BitsIndexRange, count: usize) {
         self.with_range_do_arithmetics(range, Box::new(move |a: u128| a << count))
     }
+
     /// pools sign bit (leftmost to right)
     pub fn signed_shift_right(&mut self, range: BitsIndexRange, count: usize) {
         let high_index = self.resolve_bit_index(range.0);
@@ -195,6 +206,7 @@ impl Number {
         };
         self.buffer = self.buffer | ((left_bits | (bits_to_shift >> count) & mask_n_ones_from_right(high_index - low_index + 1)) << low_index);
     }
+
     /// prepends with zeroes (leftmost)
     pub fn unsigned_shift_right(&mut self, range: BitsIndexRange, count: usize) {
         self.with_range_do_arithmetics(range, Box::new(move |a: u128| a >> count))
@@ -205,6 +217,7 @@ impl Number {
         let low_index = self.resolve_bit_index(range.1);
         self.with_range_do_arithmetics(range, Box::new(move |a: u128| (a << count) | (a >> ((high_index - low_index + 1) - count))))
     }
+
     pub fn unsigned_cyclic_shift_right(&mut self, range: BitsIndexRange, count: usize) {
         let high_index = self.resolve_bit_index(range.0);
         let low_index = self.resolve_bit_index(range.1);
@@ -252,16 +265,16 @@ impl Number {
 
     pub fn negate(&mut self) {
         self.is_signed = true;
-        let num = self.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit)) as i128;
+        let num = self.get_bits(BitsIndexRange(BitIndex::HighestBit, BitIndex::LowestBit)) as i128;
         self.buffer = (-num) as u128;
         self.buffer = self.buffer & mask_n_ones_from_right(self.effective_bits);
     }
 
-    fn resolve_bit_index(&self, bi: BitsIndex) -> usize {
-        match bi {
-            BitsIndex::IndexedBit(i) => i,
-            BitsIndex::HighestBit => self.effective_bits - 1,
-            BitsIndex::LowestBit => 0
+    fn resolve_bit_index(&self, bit_index: BitIndex) -> usize {
+        match bit_index {
+            BitIndex::IndexedBit(i) => i,
+            BitIndex::HighestBit => self.effective_bits - 1,
+            BitIndex::LowestBit => 0
         }
     }
 
@@ -290,28 +303,34 @@ impl Number {
         }
         self.effective_bits = new_max_size;
     }
-    pub fn convert(&mut self, number_type: NumberType, signed: bool, size: usize) {
+
+    pub fn convert(&mut self, number_type: BincBufferType, signed: bool, size: usize) {
         trace!("Number::convert {:?}, signed {}, size {}", number_type, signed, size);
-        self.number_type = number_type;
+        self.buffer_type = number_type;
         self.is_signed = signed;
         self.effective_bits = size;
         self.buffer = self.buffer & mask_n_ones_from_right(size);
     }
+
     pub fn to_usize(&self) -> usize {
         self.buffer as usize
     }
+
     pub fn to_u128(&self) -> u128 {
         self.buffer
     }
+
     pub fn to_string_as_char(&self) -> String {
         match char::from_u32(self.to_u128() as u32) {
             Some(c) => if !c.is_control() { format!("'{}'", c) } else { " ? ".to_owned() },
             None => " ? ".to_owned()
         }
     }
+
     pub fn to_string_prefixed(&self, radix: u32) -> String {
         self.to_string(radix, true, false)
     }
+
     pub fn to_string(&self, radix: u32, with_prefix: bool, prepend0: bool) -> String {
         let value = if self.is_negative() {
             !(self.buffer - 1) & mask_n_ones_from_right(self.effective_bits - 1)
@@ -353,12 +372,15 @@ impl Number {
         }
         formatted
     }
+
     pub fn is_negative(&self) -> bool {
         self.is_signed && self.buffer & mask_nth_bit(self.effective_bits - 1) != 0
     }
+
     pub fn number_of_digits_in_radix(&self, radix: u32) -> usize {
         (self.effective_bits as f32 * 2f32.log2() / (radix as f32).log2() + 1f32) as usize
     }
+
     pub fn signed(&self) -> bool {
         self.is_signed
     }
@@ -367,7 +389,7 @@ impl Number {
 fn mask_nth_bit(n: usize) -> u128 {
     match n {
         127 => 1u128 << 127,
-        _ => (2 as i128).pow(n as u32) as u128
+        _ => (2i128).pow(n as u32) as u128
     }
 }
 
@@ -375,7 +397,7 @@ fn mask_n_ones_from_right(n: usize) -> u128 {
     match n {
         127 => u128::MAX >> 1,
         128 => u128::MAX,
-        _ => (!-(2 as i128).pow(n as u32)) as u128
+        _ => (!-(2i128).pow(n as u32)) as u128
     }
 }
 
@@ -403,7 +425,7 @@ fn next_power_of_two_rounded_up(n: usize) -> Result<usize, String> {
     }
 }
 
-impl Display for Number {
+impl Display for BincBuffer {
     // TODO colored output
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         // write first index line
@@ -422,6 +444,7 @@ impl Display for Number {
             'u'
         };
         write!(f, "{}  ", sign_char)?;
+
         let mut count = self.effective_bits as i32 - 1;
         let mut buffer = String::with_capacity(self.effective_bits + (self.effective_bits / 8) + (self.effective_bits / 4));
         while 0 <= count {
@@ -439,6 +462,7 @@ impl Display for Number {
 
         // write second index line
         write!(f, "  {}", if self.carry { '1' } else { '0' })?;
+
         let mut second_index_line = self.effective_bits as i32 - 4;
         while second_index_line >= 0 {
             //  60 59
@@ -478,187 +502,187 @@ fn mask_from_bit_to_bit_test() {
 
 #[test]
 fn from_char() {
-    let n = Number::from_char('a').unwrap();
-    assert_eq!(0b01100001u128, n.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit)));
+    let n = BincBuffer::from_char('a').unwrap();
+    assert_eq!(0b01100001u128, n.get_bits(BitsIndexRange(BitIndex::HighestBit, BitIndex::LowestBit)));
 
-    let n = Number::from_char('λ').unwrap();
-    assert_eq!(0b0000001110111011, n.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit)));
+    let n = BincBuffer::from_char('λ').unwrap();
+    assert_eq!(0b0000001110111011, n.get_bits(BitsIndexRange(BitIndex::HighestBit, BitIndex::LowestBit)));
 
-    let n = Number::from_char('心').unwrap();
-    assert_eq!(0b0101111111000011u128, n.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit)));
+    let n = BincBuffer::from_char('心').unwrap();
+    assert_eq!(0b0101111111000011u128, n.get_bits(BitsIndexRange(BitIndex::HighestBit, BitIndex::LowestBit)));
 }
 
 #[test]
 fn from_negative_str_r10() {
-    let n = Number::from_str("-0", 10).unwrap();
+    let n = BincBuffer::from_str("-0", 10).unwrap();
     assert_eq!(0, n.to_usize());
 
-    let n = Number::from_str("-1", 10).unwrap();
+    let n = BincBuffer::from_str("-1", 10).unwrap();
     assert_eq!(0b11111111, n.to_usize());
 }
 
 #[test]
 fn from_str_r10() {
-    let n = Number::from_str("0", 10).unwrap();
+    let n = BincBuffer::from_str("0", 10).unwrap();
     assert_eq!(0, n.to_usize());
 
-    let n = Number::from_str("1", 10).unwrap();
+    let n = BincBuffer::from_str("1", 10).unwrap();
     assert_eq!(1, n.to_usize());
 
-    let n = Number::from_str("2", 10).unwrap();
+    let n = BincBuffer::from_str("2", 10).unwrap();
     assert_eq!(0b10, n.to_usize());
 
-    let n = Number::from_str("9", 10).unwrap();
+    let n = BincBuffer::from_str("9", 10).unwrap();
     assert_eq!(0b1001, n.to_usize());
 
-    let n = Number::from_str("10", 10).unwrap();
+    let n = BincBuffer::from_str("10", 10).unwrap();
     assert_eq!(0b1010, n.to_usize());
 
-    let n = Number::from_str("15", 10).unwrap();
+    let n = BincBuffer::from_str("15", 10).unwrap();
     assert_eq!(0b1111, n.to_usize());
 
-    let n = Number::from_str("16", 10).unwrap();
+    let n = BincBuffer::from_str("16", 10).unwrap();
     assert_eq!(0b10000, n.to_usize());
 
-    let n = Number::from_str(&*u8::MAX.to_string(), 10).unwrap();
+    let n = BincBuffer::from_str(&*u8::MAX.to_string(), 10).unwrap();
     assert_eq!(0b11111111, n.to_usize());
 
-    let n = Number::from_str(&*u32::MAX.to_string(), 10).unwrap();
+    let n = BincBuffer::from_str(&*u32::MAX.to_string(), 10).unwrap();
     assert_eq!("0b11111111111111111111111111111111", n.to_string_prefixed(2));
 
-    let n = Number::from_str("2147483648", 10).unwrap();
+    let n = BincBuffer::from_str("2147483648", 10).unwrap();
     assert_eq!("0b10000000000000000000000000000000", n.to_string_prefixed(2));
 }
 
 #[test]
 fn from_str_r2() {
-    let n = Number::from_str("10000000000000000000000000000000", 2).unwrap();
+    let n = BincBuffer::from_str("10000000000000000000000000000000", 2).unwrap();
     assert_eq!("0b10000000000000000000000000000000", n.to_string_prefixed(2));
 
-    let n = Number::from_str("0", 2).unwrap();
+    let n = BincBuffer::from_str("0", 2).unwrap();
     assert_eq!(0, n.to_usize());
 
-    let n = Number::from_str("1", 2).unwrap();
+    let n = BincBuffer::from_str("1", 2).unwrap();
     assert_eq!(0b1, n.to_usize());
 
-    let n = Number::from_str("10", 2).unwrap();
+    let n = BincBuffer::from_str("10", 2).unwrap();
     assert_eq!(0b10, n.to_usize());
 
-    let n = Number::from_str("1010", 2).unwrap();
+    let n = BincBuffer::from_str("1010", 2).unwrap();
     assert_eq!(0b1010, n.to_usize());
 
-    let n = Number::from_str("1111", 2).unwrap();
+    let n = BincBuffer::from_str("1111", 2).unwrap();
     assert_eq!(0b1111, n.to_usize());
 
-    let n = Number::from_str("11111", 2).unwrap();
+    let n = BincBuffer::from_str("11111", 2).unwrap();
     assert_eq!(0b11111, n.to_usize());
 
-    let n = Number::from_str("1111111111111111111111111111111111111111", 2).unwrap();
+    let n = BincBuffer::from_str("1111111111111111111111111111111111111111", 2).unwrap();
     assert_eq!("0b1111111111111111111111111111111111111111", n.to_string_prefixed(2));
 }
 
 #[test]
 fn from_str_r8() {
-    let n = Number::from_str("1111", 8).unwrap();
+    let n = BincBuffer::from_str("1111", 8).unwrap();
     assert_eq!(0b1001001001, n.to_usize());
 }
 
 #[test]
 fn from_str_r16() {
-    let n = Number::from_str("F", 16).unwrap();
+    let n = BincBuffer::from_str("F", 16).unwrap();
     assert_eq!(0b1111, n.to_usize());
 
-    let n = Number::from_str("10", 16).unwrap();
+    let n = BincBuffer::from_str("10", 16).unwrap();
     assert_eq!(0b10000, n.to_usize());
 
-    let n = Number::from_str("1F", 16).unwrap();
+    let n = BincBuffer::from_str("1F", 16).unwrap();
     assert_eq!(0b11111, n.to_usize());
 
-    let n = Number::from_str("AF", 16).unwrap();
+    let n = BincBuffer::from_str("AF", 16).unwrap();
     assert_eq!(0b10101111, n.to_usize());
 }
 
 #[test]
 fn number_get_bits() {
-    let n = Number::from_str("F", 16).unwrap();
-    let bits = n.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
+    let n = BincBuffer::from_str("F", 16).unwrap();
+    let bits = n.get_bits(BitsIndexRange(BitIndex::HighestBit, BitIndex::LowestBit));
     assert_eq!(0xf, bits);
 
-    let n = Number::from_str("1E", 16).unwrap();
-    let bits = n.get_bits(BitsIndexRange(BitsIndex::IndexedBit(3), BitsIndex::IndexedBit(0)));
+    let n = BincBuffer::from_str("1E", 16).unwrap();
+    let bits = n.get_bits(BitsIndexRange(BitIndex::IndexedBit(3), BitIndex::IndexedBit(0)));
     assert_eq!(0b1110, bits);
-    let bits = n.get_bits(BitsIndexRange(BitsIndex::IndexedBit(4), BitsIndex::IndexedBit(1)));
+    let bits = n.get_bits(BitsIndexRange(BitIndex::IndexedBit(4), BitIndex::IndexedBit(1)));
     assert_eq!(0xf, bits);
-    let bits = n.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
+    let bits = n.get_bits(BitsIndexRange(BitIndex::HighestBit, BitIndex::LowestBit));
     assert_eq!(0b00011110, bits);
 }
 
 #[test]
 fn number_set_bits() {
-    let mut n = Number::from_str("0", 16).unwrap();
-    n.set_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit), 0b11);
+    let mut n = BincBuffer::from_str("0", 16).unwrap();
+    n.set_bits(BitsIndexRange(BitIndex::HighestBit, BitIndex::LowestBit), 0b11);
     assert_eq!(0b11, n.to_usize());
 }
 
 #[test]
 fn number_to_usize() {
-    let n = Number::from_str("0", 10).unwrap();
+    let n = BincBuffer::from_str("0", 10).unwrap();
     assert_eq!(0, n.to_usize());
 
-    let n = Number::from_str("1", 10).unwrap();
+    let n = BincBuffer::from_str("1", 10).unwrap();
     assert_eq!(1, n.to_usize());
 
-    let n = Number::from_str(&usize::MAX.to_string(), 10).unwrap();
+    let n = BincBuffer::from_str(&usize::MAX.to_string(), 10).unwrap();
     assert_eq!(usize::MAX, n.to_usize());
 }
 
 #[test]
 fn number_range_add_bits() {
-    let mut n = Number::from_str("0", 10).unwrap();
+    let mut n = BincBuffer::from_str("0", 10).unwrap();
     assert_eq!(0, n.to_usize());
-    n.range_add_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit), 1);
+    n.range_add_bits(BitsIndexRange(BitIndex::HighestBit, BitIndex::LowestBit), 1);
     assert_eq!(1, n.to_usize());
 
-    let mut n = Number::from_str("ffff00", 16).unwrap();
-    n.range_add_bits(BitsIndexRange(BitsIndex::IndexedBit(23), BitsIndex::IndexedBit(8)), 1);
+    let mut n = BincBuffer::from_str("ffff00", 16).unwrap();
+    n.range_add_bits(BitsIndexRange(BitIndex::IndexedBit(23), BitIndex::IndexedBit(8)), 1);
     assert_eq!(0x00_0000_00, n.to_usize());
 
-    let mut n = Number::from_str("fffe00", 16).unwrap();
-    n.range_add_bits(BitsIndexRange(BitsIndex::IndexedBit(23), BitsIndex::IndexedBit(8)), 1);
+    let mut n = BincBuffer::from_str("fffe00", 16).unwrap();
+    n.range_add_bits(BitsIndexRange(BitIndex::IndexedBit(23), BitIndex::IndexedBit(8)), 1);
     assert_eq!(0xffff00, n.to_usize());
 
-    let mut n = Number::from_str("0", 16).unwrap();
-    n.range_add_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::IndexedBit(0)), 1);
+    let mut n = BincBuffer::from_str("0", 16).unwrap();
+    n.range_add_bits(BitsIndexRange(BitIndex::HighestBit, BitIndex::IndexedBit(0)), 1);
     assert_eq!(1, n.to_usize());
 
-    let mut n = Number::from_str("0", 16).unwrap();
-    n.range_add_bits(BitsIndexRange(BitsIndex::IndexedBit(7), BitsIndex::IndexedBit(7)), 1);
+    let mut n = BincBuffer::from_str("0", 16).unwrap();
+    n.range_add_bits(BitsIndexRange(BitIndex::IndexedBit(7), BitIndex::IndexedBit(7)), 1);
     assert_eq!(0x80, n.to_usize());
 }
 
 #[test]
 fn number_signed_shift_left() {
-    let mut n = Number::from_str("1", 10).unwrap();
+    let mut n = BincBuffer::from_str("1", 10).unwrap();
     assert_eq!(0b1, n.to_usize());
-    n.signed_shift_left(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit), 1);
+    n.signed_shift_left(BitsIndexRange(BitIndex::HighestBit, BitIndex::LowestBit), 1);
     assert_eq!(0b10, n.to_usize());
-    n.signed_shift_left(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit), 1);
+    n.signed_shift_left(BitsIndexRange(BitIndex::HighestBit, BitIndex::LowestBit), 1);
     assert_eq!(0b100, n.to_usize());
 
-    let mut n = Number::new(NumberType::Integer, false, 32).unwrap();
-    n.set_bits(BitsIndexRange(BitsIndex::HighestBit,BitsIndex::HighestBit), 1);
-    n.signed_shift_left(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit), 1);
+    let mut n = BincBuffer::new(BincBufferType::Integer, false, 32).unwrap();
+    n.set_bits(BitsIndexRange(BitIndex::HighestBit, BitIndex::HighestBit), 1);
+    n.signed_shift_left(BitsIndexRange(BitIndex::HighestBit, BitIndex::LowestBit), 1);
     assert_eq!(0, n.to_usize());
 
-    let mut n = Number::new(NumberType::Integer, false, 32).unwrap();
-    n.set_bits(BitsIndexRange(BitsIndex::IndexedBit(23),BitsIndex::IndexedBit(12)), 0xfff);
-    n.signed_shift_left(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit), 1);
+    let mut n = BincBuffer::new(BincBufferType::Integer, false, 32).unwrap();
+    n.set_bits(BitsIndexRange(BitIndex::IndexedBit(23), BitIndex::IndexedBit(12)), 0xfff);
+    n.signed_shift_left(BitsIndexRange(BitIndex::HighestBit, BitIndex::LowestBit), 1);
     assert_eq!(0x01_ff_e0_00, n.to_usize());
 
-    n.signed_shift_left(BitsIndexRange(BitsIndex::IndexedBit(24), BitsIndex::IndexedBit(12)), 1);
+    n.signed_shift_left(BitsIndexRange(BitIndex::IndexedBit(24), BitIndex::IndexedBit(12)), 1);
     assert_eq!(0x01_ff_c0_00, n.to_usize());
 
-    n.signed_shift_left(BitsIndexRange(BitsIndex::IndexedBit(24), BitsIndex::IndexedBit(12)), 1);
+    n.signed_shift_left(BitsIndexRange(BitIndex::IndexedBit(24), BitIndex::IndexedBit(12)), 1);
     assert_eq!(0x01_ff_80_00, n.to_usize());
 }
 

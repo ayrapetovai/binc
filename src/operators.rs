@@ -15,12 +15,13 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use crate::syntax::{LeftOperandSource, RightOperandSource};
-use crate::number::{Number, BitsIndexRange, BitsIndex, NumberType};
+use crate::buffer::{BincBuffer, BitsIndexRange, BitIndex, BincBufferType};
 use colored::{Colorize, Color};
 use rand::random;
 use log::trace;
 
 pub type OperationResult = Result<(HandlerResult, Option<String>), String>;
+
 #[derive(PartialEq)]
 pub enum HandlerResult {
     Historical,
@@ -28,14 +29,15 @@ pub enum HandlerResult {
     Undo,
     Redo
 }
+
 use HandlerResult::Nonhistorical;
 use HandlerResult::Historical;
 use HandlerResult::Undo;
 use HandlerResult::Redo;
 
-pub type Operator = fn(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult;
+pub type Operator = fn(buffer: &mut BincBuffer, left: LeftOperandSource, right: RightOperandSource) -> OperationResult;
 
-pub fn operator_show_help(_: &mut Number, _: LeftOperandSource, _: RightOperandSource) -> OperationResult {
+pub fn operator_show_help(_: &mut BincBuffer, _: LeftOperandSource, _: RightOperandSource) -> OperationResult {
     let mut buffer = String::with_capacity(400);
 
     buffer.push_str(&"X operator Y:".color(Color::BrightGreen).to_string());
@@ -56,13 +58,13 @@ pub fn operator_show_help(_: &mut Number, _: LeftOperandSource, _: RightOperandS
     Ok((Nonhistorical, Some(buffer)))
 }
 
-pub fn operator_assign(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+pub fn operator_assign(buffer: &mut BincBuffer, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
         RightOperandSource::DirectSource(mut other_number) => {
             other_number.signed_extend_to(buffer.max_size());
             match left {
                 LeftOperandSource::RangeSource(target_range) => {
-                    let bits = other_number.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
+                    let bits = other_number.get_bits(BitsIndexRange(BitIndex::HighestBit, BitIndex::LowestBit));
                     trace!("operator_assign: get bits: {:b}", bits);
                     buffer.set_bits(target_range, bits);
                 },
@@ -84,13 +86,13 @@ pub fn operator_assign(buffer: &mut Number, left: LeftOperandSource, right: Righ
     Ok((Historical, None))
 }
 
-pub fn operator_sum(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+pub fn operator_sum(buffer: &mut BincBuffer, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
         RightOperandSource::DirectSource(mut second_sum_operand) => {
             second_sum_operand.signed_extend_to(buffer.max_size());
             match left {
                 LeftOperandSource::RangeSource(target_range) => {
-                    let bits = second_sum_operand.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
+                    let bits = second_sum_operand.get_bits(BitsIndexRange(BitIndex::HighestBit, BitIndex::LowestBit));
                     trace!("operator_sum: get bits: {:?}", bits);
                     buffer.range_add_bits(target_range, bits);
                 },
@@ -113,13 +115,13 @@ pub fn operator_sum(buffer: &mut Number, left: LeftOperandSource, right: RightOp
     Ok((Historical, None))
 }
 
-pub fn operator_sub(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+pub fn operator_sub(buffer: &mut BincBuffer, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
         RightOperandSource::DirectSource(mut second_sum_operand) => {
             second_sum_operand.signed_extend_to(buffer.max_size());
             match left {
                 LeftOperandSource::RangeSource(target_range) => {
-                    let bits = second_sum_operand.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
+                    let bits = second_sum_operand.get_bits(BitsIndexRange(BitIndex::HighestBit, BitIndex::LowestBit));
                     buffer.range_subtract_bits(target_range, bits);
                 },
                 LeftOperandSource::NamedAccessSource(_) => {},
@@ -140,13 +142,13 @@ pub fn operator_sub(buffer: &mut Number, left: LeftOperandSource, right: RightOp
     Ok((Historical, None))
 }
 
-pub fn operator_mul(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+pub fn operator_mul(buffer: &mut BincBuffer, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
         RightOperandSource::DirectSource(mut second_sum_operand) => {
             second_sum_operand.signed_extend_to(buffer.max_size());
             match left {
                 LeftOperandSource::RangeSource(target_range) => {
-                    let bits = second_sum_operand.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
+                    let bits = second_sum_operand.get_bits(BitsIndexRange(BitIndex::HighestBit, BitIndex::LowestBit));
                     buffer.range_multiply_bits(target_range, bits);
                 },
                 LeftOperandSource::NamedAccessSource(_) => {},
@@ -167,13 +169,13 @@ pub fn operator_mul(buffer: &mut Number, left: LeftOperandSource, right: RightOp
     Ok((Historical, None))
 }
 
-pub fn operator_div(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+pub fn operator_div(buffer: &mut BincBuffer, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
         RightOperandSource::DirectSource(mut second_sum_operand) => {
             second_sum_operand.signed_extend_to(buffer.max_size());
             match left {
                 LeftOperandSource::RangeSource(target_range) => {
-                    let bits = second_sum_operand.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
+                    let bits = second_sum_operand.get_bits(BitsIndexRange(BitIndex::HighestBit, BitIndex::LowestBit));
                     if bits != 0u128 {
                         buffer.range_div_bits(target_range, bits);
                     } else {
@@ -202,13 +204,13 @@ pub fn operator_div(buffer: &mut Number, left: LeftOperandSource, right: RightOp
     Ok((Historical, None))
 }
 
-pub fn operator_mod(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+pub fn operator_mod(buffer: &mut BincBuffer, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
         RightOperandSource::DirectSource(mut second_sum_operand) => {
             second_sum_operand.signed_extend_to(buffer.max_size());
             match left {
                 LeftOperandSource::RangeSource(target_range) => {
-                    let bits = second_sum_operand.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
+                    let bits = second_sum_operand.get_bits(BitsIndexRange(BitIndex::HighestBit, BitIndex::LowestBit));
                     buffer.range_mod_bits(target_range, bits);
                 },
                 LeftOperandSource::NamedAccessSource(_) => {},
@@ -229,13 +231,13 @@ pub fn operator_mod(buffer: &mut Number, left: LeftOperandSource, right: RightOp
     Ok((Historical, None))
 }
 
-pub fn operator_pow(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+pub fn operator_pow(buffer: &mut BincBuffer, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
         RightOperandSource::DirectSource(mut second_operand) => {
             second_operand.signed_extend_to(buffer.max_size());
             match left {
                 LeftOperandSource::RangeSource(target_range) => {
-                    let bits = second_operand.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
+                    let bits = second_operand.get_bits(BitsIndexRange(BitIndex::HighestBit, BitIndex::LowestBit));
                     buffer.range_pow_bits(target_range, bits);
                 },
                 LeftOperandSource::NamedAccessSource(_) => {},
@@ -263,13 +265,13 @@ pub fn operator_pow(buffer: &mut Number, left: LeftOperandSource, right: RightOp
     Ok((Historical, None))
 }
 
-pub fn operator_root(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+pub fn operator_root(buffer: &mut BincBuffer, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
         RightOperandSource::DirectSource(mut second_operand) => {
             second_operand.signed_extend_to(buffer.max_size());
             match left {
                 LeftOperandSource::RangeSource(target_range) => {
-                    let bits = second_operand.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
+                    let bits = second_operand.get_bits(BitsIndexRange(BitIndex::HighestBit, BitIndex::LowestBit));
                     buffer.range_root_bits(target_range, bits);
                 },
                 LeftOperandSource::NamedAccessSource(_) => {},
@@ -297,13 +299,13 @@ pub fn operator_root(buffer: &mut Number, left: LeftOperandSource, right: RightO
     Ok((Historical, None))
 }
 
-pub fn operator_xor(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+pub fn operator_xor(buffer: &mut BincBuffer, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
         RightOperandSource::DirectSource(mut second_sum_operand) => {
             second_sum_operand.signed_extend_to(buffer.max_size());
             match left {
                 LeftOperandSource::RangeSource(target_range) => {
-                    let bits = second_sum_operand.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
+                    let bits = second_sum_operand.get_bits(BitsIndexRange(BitIndex::HighestBit, BitIndex::LowestBit));
                     buffer.range_xor_bits(target_range, bits);
                 },
                 LeftOperandSource::NamedAccessSource(_) => {},
@@ -324,13 +326,13 @@ pub fn operator_xor(buffer: &mut Number, left: LeftOperandSource, right: RightOp
     Ok((Historical, None))
 }
 
-pub fn operator_and(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+pub fn operator_and(buffer: &mut BincBuffer, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
         RightOperandSource::DirectSource(mut second_sum_operand) => {
             second_sum_operand.signed_extend_to(buffer.max_size());
             match left {
                 LeftOperandSource::RangeSource(target_range) => {
-                    let bits = second_sum_operand.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
+                    let bits = second_sum_operand.get_bits(BitsIndexRange(BitIndex::HighestBit, BitIndex::LowestBit));
                     buffer.range_and_bits(target_range, bits);
                 },
                 LeftOperandSource::NamedAccessSource(_) => {},
@@ -351,13 +353,13 @@ pub fn operator_and(buffer: &mut Number, left: LeftOperandSource, right: RightOp
     Ok((Historical, None))
 }
 
-pub fn operator_or(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+pub fn operator_or(buffer: &mut BincBuffer, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
         RightOperandSource::DirectSource(mut second_sum_operand) => {
             second_sum_operand.signed_extend_to(buffer.max_size());
             match left {
                 LeftOperandSource::RangeSource(target_range) => {
-                    let bits = second_sum_operand.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
+                    let bits = second_sum_operand.get_bits(BitsIndexRange(BitIndex::HighestBit, BitIndex::LowestBit));
                     buffer.range_or_bits(target_range, bits);
                 },
                 LeftOperandSource::NamedAccessSource(_) => {},
@@ -378,7 +380,7 @@ pub fn operator_or(buffer: &mut Number, left: LeftOperandSource, right: RightOpe
     Ok((Historical, None))
 }
 
-pub fn operator_not(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+pub fn operator_not(buffer: &mut BincBuffer, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
         RightOperandSource::DirectSource(_) => return Err("No second operand allowed!".to_owned()),
         RightOperandSource::RangeSource(source_range) => {
@@ -404,7 +406,7 @@ pub fn operator_not(buffer: &mut Number, left: LeftOperandSource, right: RightOp
     Ok((Historical, None))
 }
 
-pub fn operator_reverse(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+pub fn operator_reverse(buffer: &mut BincBuffer, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
         RightOperandSource::DirectSource(_) => return Err("No second operand allowed!".to_owned()),
         RightOperandSource::RangeSource(_) => return Err("No second operand allowed!".to_owned()),
@@ -421,7 +423,7 @@ pub fn operator_reverse(buffer: &mut Number, left: LeftOperandSource, right: Rig
     Ok((Historical, None))
 }
 
-pub fn operator_random(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+pub fn operator_random(buffer: &mut BincBuffer, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
         RightOperandSource::DirectSource(_) => return Err("No second operand allowed!".to_owned()),
         RightOperandSource::RangeSource(_) => return Err("No second operand allowed!".to_owned()),
@@ -438,7 +440,7 @@ pub fn operator_random(buffer: &mut Number, left: LeftOperandSource, right: Righ
     Ok((Historical, None))
 }
 
-pub fn operator_shuffle(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+pub fn operator_shuffle(buffer: &mut BincBuffer, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
         RightOperandSource::DirectSource(_) => return Err("No second operand allowed!".to_owned()),
         RightOperandSource::RangeSource(_) => return Err("No second operand allowed!".to_owned()),
@@ -455,7 +457,7 @@ pub fn operator_shuffle(buffer: &mut Number, left: LeftOperandSource, right: Rig
     Ok((Historical, None))
 }
 
-pub fn operator_signed_shift_left(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+pub fn operator_signed_shift_left(buffer: &mut BincBuffer, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     trace!("operator_signed_shift_left: {:?} {:?} {:?}", buffer, left, right);
     match right {
         RightOperandSource::DirectSource(second_operand) => {
@@ -488,7 +490,7 @@ pub fn operator_signed_shift_left(buffer: &mut Number, left: LeftOperandSource, 
     Ok((Historical, None))
 }
 
-pub fn operator_signed_shift_right(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+pub fn operator_signed_shift_right(buffer: &mut BincBuffer, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     trace!("operator_signed_shift_right: {:?} {:?} {:?}", buffer, left, right);
     match right {
         RightOperandSource::DirectSource(second_operand) => {
@@ -524,7 +526,7 @@ pub fn operator_signed_shift_right(buffer: &mut Number, left: LeftOperandSource,
     Ok((Historical, None))
 }
 
-pub fn operator_unsigned_shift_right(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+pub fn operator_unsigned_shift_right(buffer: &mut BincBuffer, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
         RightOperandSource::DirectSource(second_operand) => {
             match left {
@@ -556,7 +558,7 @@ pub fn operator_unsigned_shift_right(buffer: &mut Number, left: LeftOperandSourc
     Ok((Historical, None))
 }
 
-pub fn operator_unsigned_cyclic_shift_right(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+pub fn operator_unsigned_cyclic_shift_right(buffer: &mut BincBuffer, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
         RightOperandSource::DirectSource(second_operand) => {
             match left {
@@ -588,7 +590,7 @@ pub fn operator_unsigned_cyclic_shift_right(buffer: &mut Number, left: LeftOpera
     Ok((Historical, None))
 }
 
-pub fn operator_unsigned_cyclic_shift_left(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+pub fn operator_unsigned_cyclic_shift_left(buffer: &mut BincBuffer, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
         RightOperandSource::DirectSource(second_operand) => {
             match left {
@@ -620,17 +622,17 @@ pub fn operator_unsigned_cyclic_shift_left(buffer: &mut Number, left: LeftOperan
     Ok((Historical, None))
 }
 
-pub fn operator_int_bits_width(buffer: &mut Number, _: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+pub fn operator_int_bits_width(buffer: &mut BincBuffer, _: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
         RightOperandSource::DirectSource(number) => {
-            buffer.convert(NumberType::Integer, buffer.signed(), number.to_usize());
+            buffer.convert(BincBufferType::Integer, buffer.signed(), number.to_usize());
             Ok((Historical, None))
         }
         _ => return Err("Bit width is a necessary argument".to_owned())
     }
 }
 
-pub fn operator_count(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+pub fn operator_count(buffer: &mut BincBuffer, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
         RightOperandSource::DirectSource(second_operand) => match left {
             LeftOperandSource::RangeSource(target_range) => {
@@ -659,22 +661,22 @@ pub fn operator_count(buffer: &mut Number, left: LeftOperandSource, right: Right
     Ok((Historical, None))
 }
 
-pub fn operator_signed(buffer: &mut Number, _: LeftOperandSource, _: RightOperandSource) -> OperationResult {
-    buffer.convert(NumberType::Integer, true, buffer.max_size());
+pub fn operator_signed(buffer: &mut BincBuffer, _: LeftOperandSource, _: RightOperandSource) -> OperationResult {
+    buffer.convert(BincBufferType::Integer, true, buffer.max_size());
     Ok((Historical, None))
 }
 
-pub fn operator_unsigned(buffer: &mut Number, _: LeftOperandSource, _: RightOperandSource) -> OperationResult {
-    buffer.convert(NumberType::Integer, false, buffer.max_size());
+pub fn operator_unsigned(buffer: &mut BincBuffer, _: LeftOperandSource, _: RightOperandSource) -> OperationResult {
+    buffer.convert(BincBufferType::Integer, false, buffer.max_size());
     Ok((Historical, None))
 }
 
-pub fn operator_greater(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+pub fn operator_greater(buffer: &mut BincBuffer, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
         RightOperandSource::DirectSource(second_operand) => {
             match left {
                 LeftOperandSource::RangeSource(target_range) => {
-                    let bits_second_op = second_operand.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
+                    let bits_second_op = second_operand.get_bits(BitsIndexRange(BitIndex::HighestBit, BitIndex::LowestBit));
                     let bits_first_op = buffer.get_bits(target_range);
                     return Ok((Nonhistorical, Some((if bits_first_op > bits_second_op { "yes" } else { "no" }).to_owned())));
                 },
@@ -697,12 +699,12 @@ pub fn operator_greater(buffer: &mut Number, left: LeftOperandSource, right: Rig
     Ok((Historical, None))
 }
 
-pub fn operator_less(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+pub fn operator_less(buffer: &mut BincBuffer, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
         RightOperandSource::DirectSource(second_operand) => {
             match left {
                 LeftOperandSource::RangeSource(target_range) => {
-                    let bits_second_op = second_operand.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
+                    let bits_second_op = second_operand.get_bits(BitsIndexRange(BitIndex::HighestBit, BitIndex::LowestBit));
                     let bits_first_op = buffer.get_bits(target_range);
                     return Ok((Nonhistorical, Some((if bits_first_op < bits_second_op { "yes" } else { "no" }).to_owned())));
                 },
@@ -725,12 +727,12 @@ pub fn operator_less(buffer: &mut Number, left: LeftOperandSource, right: RightO
     Ok((Historical, None))
 }
 
-pub fn operator_equals(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+pub fn operator_equals(buffer: &mut BincBuffer, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
         RightOperandSource::DirectSource(second_operand) => {
             match left {
                 LeftOperandSource::RangeSource(target_range) => {
-                    let bits_second_op = second_operand.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit));
+                    let bits_second_op = second_operand.get_bits(BitsIndexRange(BitIndex::HighestBit, BitIndex::LowestBit));
                     let bits_first_op = buffer.get_bits(target_range);
                     return Ok((Nonhistorical, Some((if bits_first_op == bits_second_op { "yes" } else { "no" }).to_owned())));
                 },
@@ -753,7 +755,7 @@ pub fn operator_equals(buffer: &mut Number, left: LeftOperandSource, right: Righ
     Ok((Historical, None))
 }
 
-pub fn operator_swap(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+pub fn operator_swap(buffer: &mut BincBuffer, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     match right {
         RightOperandSource::DirectSource(_) => return Err("Cannot swap with rvalue!".to_owned()),
         RightOperandSource::RangeSource(source_range) => {
@@ -773,13 +775,13 @@ pub fn operator_swap(buffer: &mut Number, left: LeftOperandSource, right: RightO
     Ok((Historical, None))
 }
 
-pub fn operator_negate(buffer: &mut Number, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
+pub fn operator_negate(buffer: &mut BincBuffer, left: LeftOperandSource, right: RightOperandSource) -> OperationResult {
     if let LeftOperandSource::NamedAccessSource(_) = left {
         return Err("Only [max:min] range is acceptable for negation.".to_owned());
     }
     if let LeftOperandSource::RangeSource(range) = left {
-        if let BitsIndex::HighestBit = range.0 {
-            if let BitsIndex::LowestBit = range.1 {} else {
+        if let BitIndex::HighestBit = range.0 {
+            if let BitIndex::LowestBit = range.1 {} else {
                 return Err("Right bound of range can be only lowest index.".to_owned());
             }
         } else {
@@ -793,11 +795,11 @@ pub fn operator_negate(buffer: &mut Number, left: LeftOperandSource, right: Righ
     Ok((Historical, None))
 }
 
-pub fn operator_undo(_: &mut Number, _: LeftOperandSource, _: RightOperandSource) -> OperationResult {
+pub fn operator_undo(_: &mut BincBuffer, _: LeftOperandSource, _: RightOperandSource) -> OperationResult {
     Ok((Undo, None))
 }
 
-pub fn operator_redo(_: &mut Number, _: LeftOperandSource, _: RightOperandSource) -> OperationResult {
+pub fn operator_redo(_: &mut BincBuffer, _: LeftOperandSource, _: RightOperandSource) -> OperationResult {
     Ok((Redo, None))
 }
 

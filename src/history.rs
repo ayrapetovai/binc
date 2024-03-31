@@ -14,13 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::number::Number;
+use crate::buffer::BincBuffer;
 use std::collections::VecDeque;
 
 #[derive(Debug)]
 pub struct History {
-    backward_list: VecDeque<Number>,
-    forward_list: VecDeque<Number>,
+    backward_list: VecDeque<BincBuffer>,
+    forward_list: VecDeque<BincBuffer>,
     max_size: usize,
 }
 
@@ -33,17 +33,17 @@ impl History {
         }
     }
 
-    pub fn save(&mut self, number: &Number) {
+    pub fn save(&mut self, buffer: &BincBuffer) {
         if self.backward_list.len() + 1 > self.max_size {
             self.backward_list.pop_front();
         }
-        self.backward_list.push_back(number.clone());
+        self.backward_list.push_back(buffer.clone());
         if !self.forward_list.is_empty() {
             self.forward_list.clear();
         }
     }
 
-    pub fn backward(&mut self) -> Number {
+    pub fn backward(&mut self) -> BincBuffer {
         if self.backward_list.len() == 1 {
             self.backward_list.back().unwrap().clone()
         } else {
@@ -53,7 +53,7 @@ impl History {
         }
     }
 
-    pub fn forward(&mut self) -> Number {
+    pub fn forward(&mut self) -> BincBuffer {
         if self.forward_list.len() == 0 {
             self.backward_list.back().unwrap().clone()
         } else {

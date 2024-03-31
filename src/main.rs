@@ -17,11 +17,11 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 mod syntax;
-mod number;
+mod buffer;
 mod operators;
 mod history;
 
-use number::{Number, NumberType};
+use buffer::{BincBuffer, BincBufferType};
 
 use log::{error, trace, debug};
 use rustyline::config::Configurer;
@@ -37,7 +37,7 @@ use std::str::FromStr;
 use smallvec::{smallvec};
 use std::process::exit;
 
-fn print_ui(number: &Number) {
+fn print_ui(number: &BincBuffer) {
     let line = format!(
         "{0:>1$} {2:>3$} {4:>5$} {6:>7$}",
         number.to_string_as_char(), 3,
@@ -51,13 +51,13 @@ fn print_ui(number: &Number) {
     println!("{}", number);
 }
 
-type Executor = dyn FnOnce(&mut Number) -> OperationResult;
+type Executor = dyn FnOnce(&mut BincBuffer) -> OperationResult;
 
 fn generate_executor(command: &str) -> Result<Box<Executor>, String> {
     match parse(command) {
         Ok((left_operand_source, operator_handler, right_operand_source)) => {
             Ok(
-                Box::new(move |main_buffer: &mut Number| {
+                Box::new(move |main_buffer: &mut BincBuffer| {
                     operator_handler(main_buffer, left_operand_source, right_operand_source)
                 })
             )
@@ -71,11 +71,11 @@ fn interactive_routine(history_size: usize) {
     let mut cli_editor = Editor::<()>::new();
     cli_editor.set_max_history_size(history_size);
 
-    let mut main_buffer = Number::new(NumberType::Integer, true, 32).unwrap();
+    let mut main_buffer = BincBuffer::new(BincBufferType::Integer, true, 32).unwrap();
     let mut buffer_history = History::new( history_size);
     buffer_history.save(&main_buffer);
 
-    // SHIFT+LEFT/SHIFT+RIGHT - undo/redo
+    // TODO SHIFT+LEFT/SHIFT+RIGHT and Ctrl-u/Ctrl-r (bash intercepts this) - undo/redo
     cli_editor.bind_sequence(Event::KeySeq(smallvec![KeyEvent::ctrl('Q')]), EventHandler::from(Cmd::EndOfFile));
 
     loop {
@@ -133,7 +133,7 @@ fn interactive_routine(history_size: usize) {
 }
 
 fn not_interactive_routine(commands: &str, format: &str, prepend0: bool) -> String {
-    let mut main_buffer = Number::new(NumberType::Integer, true, 32).unwrap();
+    let mut main_buffer = BincBuffer::new(BincBufferType::Integer, true, 32).unwrap();
 
     trace!("interactive: got commands: '{}'", commands);
     let command_list = commands.split(";").collect::<Vec<_>>();

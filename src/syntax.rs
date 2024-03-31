@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::number::{Number, BitsIndexRange, BitsIndex};
+use crate::buffer::{BincBuffer, BitsIndexRange, BitIndex};
 use crate::operators::Operator;
 use crate::operators::operator_show_help;
 use crate::operators::operator_assign;
@@ -69,7 +69,7 @@ pub enum LeftOperandSource {
 pub enum RightOperandSource {
     RangeSource(BitsIndexRange),
     NamedAccessSource(NamedAccess),
-    DirectSource(Number),
+    DirectSource(BincBuffer),
     Empty,
 }
 
@@ -79,6 +79,7 @@ pub struct ParsingIterator {
 }
 
 impl ParsingIterator {
+
     pub fn from(source_string: &str) -> Result<Self, &str> {
         let source: Vec<char> = source_string.chars().collect();
         // skip leading whitespaces
@@ -88,6 +89,7 @@ impl ParsingIterator {
         }
         Ok(Self { source, offset })
     }
+
     pub fn current(&self) -> Option<char> {
         if self.offset < self.source.len() {
             Some(self.source[self.offset])
@@ -95,6 +97,7 @@ impl ParsingIterator {
             None
         }
     }
+
     pub fn match_from_current(&self, sequence: &str) -> bool {
         let bytes: Vec<char> = sequence.chars().collect();
         for i in 0..sequence.len() {
@@ -106,6 +109,7 @@ impl ParsingIterator {
         trace!("match_from_current: {}", sequence);
         true
     }
+
     pub fn next(&mut self) -> Option<char> {
         if self.offset < self.source.len() {
             self.offset += 1;
@@ -115,6 +119,7 @@ impl ParsingIterator {
         }
         self.current()
     }
+
     pub fn rewind(mut self, n: usize, skip_whitespaces: bool) -> Self {
         let mut skip_counter = 0;
         while self.offset < self.source.len() && skip_counter < n {
@@ -125,6 +130,7 @@ impl ParsingIterator {
         }
         self
     }
+
     pub fn rewind_n(self, n: usize) -> Self {
         self.rewind(n, true)
     }
@@ -158,22 +164,22 @@ pub fn syntax_index(mut it: ParsingIterator) -> (ParsingIterator, Option<usize>)
 
 fn syntax_range(it: ParsingIterator) -> (ParsingIterator, BitsIndexRange) {
     let (it_after_index, range_left_index) = match syntax_index(it) {
-        (it, Some(i)) => (it, BitsIndex::IndexedBit(i)),
-        (it, None) => (it, BitsIndex::HighestBit)
+        (it, Some(i)) => (it, BitIndex::IndexedBit(i)),
+        (it, None) => (it, BitIndex::HighestBit)
     };
     let (it_after_index, range_right_index) = if let Some(c) = it_after_index.current() {
         if c == ':' {
             match syntax_index(it_after_index.rewind_n(1)) {
-                (it, Some(i)) => (it, BitsIndex::IndexedBit(i)),
-                (it, None) => (it, BitsIndex::LowestBit)
+                (it, Some(i)) => (it, BitIndex::IndexedBit(i)),
+                (it, None) => (it, BitIndex::LowestBit)
             }
-        } else if let (Some(']'), BitsIndex::IndexedBit(_))  = (it_after_index.current(), range_left_index) {
+        } else if let (Some(']'), BitIndex::IndexedBit(_))  = (it_after_index.current(), range_left_index) {
             (it_after_index, range_left_index)
         } else {
-            (it_after_index, BitsIndex::LowestBit)
+            (it_after_index, BitIndex::LowestBit)
         }
     } else {
-        (it_after_index, BitsIndex::LowestBit)
+        (it_after_index, BitIndex::LowestBit)
     };
     trace!("syntax_range: resulting range ({:?}, {:?})", range_left_index, range_right_index);
     (it_after_index, BitsIndexRange(range_left_index, range_right_index))
@@ -212,7 +218,7 @@ fn syntax_letter(it: ParsingIterator) -> Result<(ParsingIterator, RightOperandSo
                 // TODO add support for unicode literals like '\x03BB' or '\u1132'
                 let current_it = it.rewind_n_include_whitespaces(1);
                 if let Some(c) = current_it.current() {
-                    let number = Number::from_char(c).unwrap();
+                    let number = BincBuffer::from_char(c).unwrap();
                     let current_it = current_it.rewind_n(1);
                     if let Some(c) = current_it.current() {
                         if c == '\'' {
@@ -328,7 +334,7 @@ fn syntax_radix_number(it: ParsingIterator, is_negative: bool) -> Result<(Parsin
                 }
             _ => Err(format!("Bad radix letter '{}'", c))
         },
-        None => Ok((it, RightOperandSource::DirectSource(Number::from_str("0", 10).unwrap())))
+        None => Ok((it, RightOperandSource::DirectSource(BincBuffer::from_str("0", 10).unwrap())))
     }
 }
 
@@ -347,7 +353,7 @@ fn syntax_number(mut it: ParsingIterator, radix: u32, is_negative: bool) -> Resu
         it.next();
     }
     trace!("syntax_number: number literal '{}'", number_literal);
-    match Number::from_str(&number_literal, radix) {
+    match BincBuffer::from_str(&number_literal, radix) {
         Ok(number) => Ok((it, RightOperandSource::DirectSource(number))),
         Err(message) => Err(message)
     }
@@ -362,7 +368,7 @@ pub fn parse(cmd: &str) -> Result<(LeftOperandSource, Operator, RightOperandSour
         }
     ) {
         Ok((it, Some(ops))) => (it, LeftOperandSource::RangeSource(ops)),
-        Ok((it, None)) => (it, LeftOperandSource::RangeSource(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit))),
+        Ok((it, None)) => (it, LeftOperandSource::RangeSource(BitsIndexRange(BitIndex::HighestBit, BitIndex::LowestBit))),
         Err(message) => return Err(message)
     };
     let (it_after_operator, operator_handler) = match syntax_operator(it_after_first_operand) {
@@ -535,7 +541,7 @@ fn syntax_letter_test() {
             }
             match right_operand_source {
                 RightOperandSource::DirectSource(n) => {
-                    assert_eq!(0b01100001u128, n.get_bits(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::LowestBit)))
+                    assert_eq!(0b01100001u128, n.get_bits(BitsIndexRange(BitIndex::HighestBit, BitIndex::LowestBit)))
                 }
                 _ => panic!("syntax_letter() returned not a DirectSource")
             }
@@ -576,7 +582,7 @@ fn syntax_letter_test() {
 fn syntax_accessor_test() {
     match syntax_accessor(ParsingIterator::from("[]").unwrap()) {
         Ok((_, Some(range))) => {
-            if !(range.0 == BitsIndex::HighestBit && range.1 == BitsIndex::LowestBit) {
+            if !(range.0 == BitIndex::HighestBit && range.1 == BitIndex::LowestBit) {
                 panic!("syntax_accessor() parses wrong range, got {:?}", range)
             }
         }
@@ -586,7 +592,7 @@ fn syntax_accessor_test() {
 
     match syntax_accessor(ParsingIterator::from("[:]").unwrap()) {
         Ok((_, Some(range))) => {
-            if !(range.0 == BitsIndex::HighestBit && range.1 == BitsIndex::LowestBit) {
+            if !(range.0 == BitIndex::HighestBit && range.1 == BitIndex::LowestBit) {
                 panic!("syntax_accessor() parses wrong range")
             }
         }
@@ -595,7 +601,7 @@ fn syntax_accessor_test() {
     }
 
     match syntax_accessor(ParsingIterator::from("[4]").unwrap()) {
-        Ok((_, Some(BitsIndexRange(BitsIndex::IndexedBit(left), BitsIndex::IndexedBit(right))))) => {
+        Ok((_, Some(BitsIndexRange(BitIndex::IndexedBit(left), BitIndex::IndexedBit(right))))) => {
             if !(left == 4 && right == 4) {
                 panic!("syntax_accessor() parses wrong range")
             }
@@ -605,7 +611,7 @@ fn syntax_accessor_test() {
     }
 
     match syntax_accessor(ParsingIterator::from("[3:5]").unwrap()) {
-        Ok((_, Some(BitsIndexRange(BitsIndex::IndexedBit(left), BitsIndex::IndexedBit(right))))) => {
+        Ok((_, Some(BitsIndexRange(BitIndex::IndexedBit(left), BitIndex::IndexedBit(right))))) => {
             if !(left == 3 && right == 5) {
                 panic!("syntax_accessor() parses wrong range")
             }
@@ -615,7 +621,7 @@ fn syntax_accessor_test() {
     }
 
     match syntax_accessor(ParsingIterator::from("[3:]").unwrap()) {
-        Ok((_, Some(BitsIndexRange(BitsIndex::IndexedBit(left), BitsIndex::LowestBit)))) => {
+        Ok((_, Some(BitsIndexRange(BitIndex::IndexedBit(left), BitIndex::LowestBit)))) => {
             if !(left == 3) {
                 panic!("syntax_accessor() parses wrong range")
             }
@@ -625,7 +631,7 @@ fn syntax_accessor_test() {
     }
 
     match syntax_accessor(ParsingIterator::from("[:5]").unwrap()) {
-        Ok((_, Some(BitsIndexRange(BitsIndex::HighestBit, BitsIndex::IndexedBit(right))))) => {
+        Ok((_, Some(BitsIndexRange(BitIndex::HighestBit, BitIndex::IndexedBit(right))))) => {
             if !(right == 5) {
                 panic!("syntax_accessor() parses wrong range")
             }
