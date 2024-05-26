@@ -36,6 +36,7 @@ use colored::{Colorize, Color};
 use std::str::FromStr;
 use smallvec::{smallvec};
 use std::process::exit;
+use crossterm_cursor::cursor;
 
 fn print_ui(number: &BincBuffer) {
     let line = format!(
@@ -66,7 +67,7 @@ fn generate_executor(command: &str) -> Result<Box<Executor>, String> {
     }
 }
 
-fn interactive_routine(history_size: usize) {
+fn interactive_routine(history_size: usize, append_output: bool) {
     // `()` can be used when no completer is required
     let mut cli_editor = Editor::<()>::new();
     cli_editor.set_max_history_size(history_size);
@@ -78,8 +79,11 @@ fn interactive_routine(history_size: usize) {
     // TODO SHIFT+LEFT/SHIFT+RIGHT and Ctrl-u/Ctrl-r (bash intercepts this) - undo/redo
     cli_editor.bind_sequence(Event::KeySeq(smallvec![KeyEvent::ctrl('Q')]), EventHandler::from(Cmd::EndOfFile));
 
+    let mut lines_printed = 0u16;
     loop {
         print_ui(&main_buffer);
+        lines_printed = 6;
+
         let input = cli_editor.readline("(binc) ");
         match input {
             Ok(commands) => {
@@ -105,14 +109,21 @@ fn interactive_routine(history_size: usize) {
                                         HandlerResult::Nonhistorical => {}
                                     }
                                     if let Some(message) = optional_message {
-                                        println!("{}", message)
+                                        println!("{}", message);
+                                        lines_printed += 1;
                                     }
                                 }
-                                Err(err_msg) => println!("operation error: {}", err_msg)
+                                Err(err_msg) => {
+                                    println!("operation error: {}", err_msg);
+                                    lines_printed += 1;
+                                }
                             }
                             trace!("buffer: {}, size {}, bits 0b{:b} ", main_buffer.signed(), main_buffer.max_size(), main_buffer.to_u128());
                         }
-                        Err(err_msg) => println!("parsing error: {}", err_msg)
+                        Err(err_msg) => {
+                            println!("parsing error: {}", err_msg);
+                            lines_printed += 1;
+                        }
                     }
                 }
             },
@@ -128,6 +139,16 @@ fn interactive_routine(history_size: usize) {
                 error!("Error: {:?}", err);
                 break
             }
+        }
+
+        if !append_output {
+            // for _ in 6..lines_printed {
+            //     println!();
+            //     lines_printed += 1;
+            // }
+
+            let mut cursor = cursor();
+            cursor.move_up(lines_printed).expect("TODO: panic message");
         }
     }
 }
@@ -194,7 +215,7 @@ fn main() {
     // TODO make struct with parameters https://github.com/clap-rs/clap
     // TODO make a cli.yml (https://docs.rs/clap/2.33.3/clap/), and use it like this: let yaml = load_yaml!("cli.yml"); let matches = App::from_yaml(yaml).get_matches();
     let matches = command!()
-        .version("2")
+        .version("0.2.1")
         .arg(Arg::new("v")
             .short('v')
             .multiple_occurrences(true)// multiple_values?
@@ -205,6 +226,11 @@ fn main() {
             .default_value("100")
             .takes_value(true)
             .help("Sets the size of the command history."))
+        .arg(Arg::new("append_output")
+            .long("append-output")
+            .short('a')
+            .takes_value(false)
+            .help("If given, the text output will appended after every command, not overwritten."))
         .arg(Arg::new("expression")
             .long("expression")
             .short('e')
@@ -242,6 +268,7 @@ fn main() {
     };
     debug!("History size {}", history_size);
 
+    let append_output = matches.is_present("append_output");
     stderrlog::new().module(module_path!()).verbosity(verbosity_level).init().unwrap();
 
     match matches.value_of("expression") {
@@ -254,7 +281,7 @@ fn main() {
             }
         },
         None => {
-            interactive_routine(history_size);
+            interactive_routine(history_size, append_output);
         }
     }
 }
