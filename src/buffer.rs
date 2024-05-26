@@ -49,6 +49,60 @@ pub struct BincBuffer {
     carry: bool,
 }
 
+// impl Binary for BinaryStore {
+// 
+//     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+//         for i in (0..self.bytes.len()).rev() {
+//             let byte = self.bytes[i];
+//             let mut bit_mask = 0x80;
+//             while bit_mask > 0 {
+//                 let c = if byte & bit_mask == 0 { '0' } else { '1' };
+//                 if let Err(e) = f.write_char(c) {
+//                     return Err(e);
+//                 }
+//                 bit_mask >>= 1;
+//             }
+//         }
+//         Ok(())
+//     }
+// }
+
+/// implementation for Booth's algorithm
+// fn multiply(ref mut dest: &mut Vec<u8>, ref source: Vec<u8>) {
+//     -- not ready
+//     for i in 0..dest.len() {
+//         let mut dest_byte = dest[i];
+//         dest_byte |= dest[i] << source[i];
+//         dest_byte |= dest[i] << 2;
+//     }
+// }
+
+//    pub fn from_primitive(number: u128) -> Self {
+//         let effective_bits = size_of::<u128>() * 8 - number.leading_zeros() as usize;
+//         let mut bit_mask = 1u128;
+//         let mut buffer: Vec<u8> = Vec::new();
+//         let mut i = 0;
+//         while i < effective_bits {
+//             let index_in_byte = i % 8;
+//             if index_in_byte == 0 {
+//                 buffer.push(0);
+//             }
+//             let bit = number & bit_mask;
+//             let shift = (i / 8) * 8;
+//             buffer[i / 8] = buffer[i / 8] | (bit >> shift) as u8;
+//             i += 1;
+//             bit_mask <<= 1;
+//         }
+//
+//         Self {
+//             buffer,
+//             effective_bits,
+//             buffer_type: BincBufferType::Integer,
+//             is_signed: false,
+//             carry: false,
+//         }
+//     }
+
 impl BincBuffer {
 
     pub fn new(buffer_type: BincBufferType, is_signed: bool, size: usize) -> Result<Self, String> {
